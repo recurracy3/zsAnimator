@@ -29,6 +29,7 @@ class zScriptAnimation:
         self.frames = []
         self.className = 'ZSAnimation' + animationName
     
+    # convert this data to a zscript file
     def toZscript(self):
         result = ''
         result += 'class {0} : ZSAnimation {{\n'.format(self.className)
@@ -44,27 +45,27 @@ class zScriptFrame:
     def __init__(self, framenum):
         self.frame = framenum
         self.layerName = ''
-        self.camRotation = mathutils.Euler((0,0,0), ('XYZ'))
+        self.rotation = mathutils.Euler((0,0,0), ('XYZ'))
         self.posOffs = mathutils.Vector((0,0,0))
         self.scale = mathutils.Vector((0,0,0))
         self.ang = 0
         self.boneData = {}
         self.interpolation = True
         
+    #convert this data to a zscript line
     def toZscript(self):
         # format: 
         # {0}: bone name (psp index)
         # {1}: frame number
-        # {2}-{4}: cam x y z
+        # {2}-{4}: angles x y z
         # {5}-{6}: pspoffset x y
         # {7}-{8}: pspscale x y
-        # {9}: psp angle
-        # {1}: interpolation
-        return 'frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}, {10}))'.format(self.layerName, self.frame,
-            self.camRotation.x, self.camRotation.y, self.camRotation.z,
+        # {9}: interpolation
+        return 'frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}))'.format(self.layerName, self.frame,
+            self.rotation.x, self.rotation.y, self.rotation.z,
             self.posOffs.z, self.posOffs.y,
             self.scale.x, self.scale.y,
-            self.ang, self.interpolation)
+            self.interpolation)
 
 def write_file(fname, zAnim):
     with open(fname, 'w', encoding='utf-8') as f:
@@ -91,8 +92,9 @@ def exportZS(context, filename, animName, actionName, posScale = 500.0):
     
     zAnim = zScriptAnimation(animName)
     
-    for framenum in range(scene.frame_start-1, scene.frame_end):
-        print('framenum {0}'.format(framenum))
+    for framenum in range(scene.frame_start, scene.frame_end+1):
+        frameOffs = framenum - (scene.frame_start)
+        print('framenum {0} offs {1}'.format(framenum, frameOffs))
         properties = {}
         
         for fci, fc in enumerate(fcurves):
@@ -101,6 +103,7 @@ def exportZS(context, filename, animName, actionName, posScale = 500.0):
             if (not bone.select):
                 continue
             
+            #initialize the properties for this bone
             if not bone.name in properties:
                 properties[bone.name] = {}
                 properties[bone.name]['location'] = []
@@ -108,8 +111,10 @@ def exportZS(context, filename, animName, actionName, posScale = 500.0):
                 properties[bone.name]['scale'] = []
                 properties[bone.name]['interpolation'] = 'BEZIER'
             
+            # calculate the curve positions for this frame
             eval = fc.evaluate(framenum)
             
+            # determine which property is being adjusted by this curve
             bonenamelen = len(bone.name)
             propname = fc.data_path[12 + bonenamelen + 3 :]
             if (propname == 'rotation_euler'):
@@ -118,29 +123,23 @@ def exportZS(context, filename, animName, actionName, posScale = 500.0):
                 eval *= posScale
             properties[bone.name][propname].append(eval)
             
+            # we need to remember when interpolation should not be applied, so we can get the last keyframe before the current one
             keyframe = get_last_keyframe(fc, framenum)
             if keyframe != None:
-                print(keyframe.co.x)
                 properties[bone.name]['interpolation'] = keyframe.interpolation
-            else:
-                print('keyframe none')
-            
-        print(properties)
+                
+            print(properties)
         
         for key in properties:
-            zFrame = zScriptFrame(framenum)
+            zFrame = zScriptFrame(frameOffs)
             zFrame.layerName = key
             val = properties[key]
-            print(key)
-            if (key == 'ZSAnimator.PlayerView'):
-                camRot = val['rotation_euler']
-                print(camRot)
-                zFrame.camRotation = mathutils.Euler((camRot[0]*3.0, camRot[1]*3.0, camRot[2]*3.0), 'XYZ')
-            else:
-                zFrame.ang = val['rotation_euler'][0]
-                zFrame.posOffs = mathutils.Vector((val['location'][0], val['location'][1], val['location'][2]))
-                zFrame.scale = mathutils.Vector((val['scale'][0], val['scale'][1], val['scale'][2]))
-                zFrame.interpolation = True if val['interpolation'] != 'LINEAR' else False
+            camRot = val['rotation_euler']
+            zFrame.rotation = mathutils.Euler((camRot[0], camRot[1], camRot[2]), 'XYZ')
+            zFrame.ang = val['rotation_euler'][0]
+            zFrame.posOffs = mathutils.Vector((val['location'][0], val['location'][1], val['location'][2]))
+            zFrame.scale = mathutils.Vector((val['scale'][0], val['scale'][1], val['scale'][2]))
+            zFrame.interpolation = True if val['interpolation'] != 'LINEAR' else False
                 
             zAnim.frames.append(zFrame)
     
@@ -151,6 +150,7 @@ class ZScriptExport(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     bl_idname = "export.zs"
     bl_label = "Export ZScript"
     filename_ext = ".zs"
+    # initialize properties in export field
     animName: bpy.props.StringProperty(name="Animation name", default="")
     actionName: bpy.props.StringProperty(name="Action name", default="")
     posScale: bpy.props.FloatProperty(name="Position Scale", description="Position scalar", default=500.0, min=1.0, step=0, precision=4)
