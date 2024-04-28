@@ -1,0 +1,11 @@
+AddOptionMenu "OptionsMenu"
+{
+	StaticText ""
+	Submenu "ZSAnimator Options", "ZSAOptions"
+}
+
+OptionMenu "ZSAOptions"
+{
+	Title "ZSAnimator Options"
+	Slider "Camera movement scale", "zsa_viewscale", 0.0, 1.0, 0.1
+}

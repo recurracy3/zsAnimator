@@ -1,0 +1,1 @@
+user float zsa_viewscale = 1.0;
