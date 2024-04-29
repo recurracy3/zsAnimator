@@ -6,6 +6,8 @@ class ZSAnimationFrame
 	Vector2 pspOffsets;
 	Vector2 pspScale;
 	bool interpolate;
+	bool flipx;
+	bool flipy;
 	
 	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate)
 	{
@@ -15,6 +17,16 @@ class ZSAnimationFrame
 		frame.angles = angles;
 		frame.pspOffsets = pspOffsets;
 		frame.pspScale = pspScale;
+		if (frame.pspScale.x < 0)
+		{
+			frame.flipx = true;
+		}
+		if (frame.pspScale.y < 0)
+		{
+			frame.flipy = true;
+		}
+		
+		frame.pspScale = (abs(frame.pspScale.X), abs(frame.pspScale.Y));
 		frame.interpolate = interpolate;
 		return frame;
 	}
@@ -23,6 +35,7 @@ class ZSAnimationFrame
 class ZSAnimationFrameNode
 {
 	ZSAnimationFrameNode next;
+	ZSAnimationFrameNode prev;
 	Array<ZSAnimationFrame> frames;
 	
 	static ZSAnimationFrameNode Create()
@@ -34,17 +47,15 @@ class ZSAnimationFrameNode
 
 Class ZSAnimation
 {
-	enum AnimFlags
-	{
-		ZSA_INTERPOLATE = 1 << 0
-	}
-	
 	int frameCount;
+	int framerate;
 	bool running;
 	//ZSAnimationFrame previousFrame;
 	//Weapon currentWeapon;
 	Array<ZSAnimationFrame> frames;
 	ZSAnimationFrameNode currentNode;
+	ZSAnimationFrameNode firstNode;
+	ZSAnimationFrameNode lastNode;
 	
 	virtual void MakeFrameList() { }
 	virtual void Initialize() { }
@@ -53,7 +64,8 @@ Class ZSAnimation
 		//console.printf("linking list, %d frames", frameCount);
 		currentNode = ZSAnimationFrameNode.Create();
 		ZSAnimationFrameNode last = currentNode;
-		//console.printf("base node %p", currentNode);
+		firstNode = currentNode;
+		console.printf("base node %p", firstNode);
 		for (int f = 0; f <= frameCount; f++)
 		{
 			ZSAnimationFrameNode n = ZSAnimationFrameNode.Create();
@@ -68,8 +80,19 @@ Class ZSAnimation
 			}
 			
 			last.next = n;
+			n.prev = last;
 			last = n;
 		}
+		
+		lastNode = last;
+	}
+	
+	void GotoNextFrame()
+	{
+		if (framerate >= 0.0)
+			currentNode = currentNode.next;
+		else
+			currentNode = currentNode.prev;
 	}
 }
 
@@ -84,19 +107,36 @@ Class ZSAnimator : Thinker
 	ZSAnimation currentAnimation;
 	int currentTicks;
 	PlayerInfo ply;
+	double framerate;
 	
-	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0)
+	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, double frameRate = 1.0)
 	{
 		if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
 		{
 			self.ply = ply;
 			currentAnimation = ZSAnimation(New(animationClass));
-			console.printf("starting animation %s", currentAnimation.GetClassName());
 			currentAnimation.Initialize();
 			currentAnimation.MakeFrameList();
 			currentAnimation.LinkList();
+			
+			if (frameRate >= 0)
+			{
+				currentAnimation.currentNode = currentAnimation.firstNode;
+			}
+			else
+			{
+				currentAnimation.currentNode = currentAnimation.lastNode;
+			}
+			console.printf("base node %p", currentAnimation.currentNode);
 			currentAnimation.running = true;
+			currentAnimation.framerate = framerate;
+			frameRate = 1.0;
 		}
+	}
+	
+	void GotoNextFrame()
+	{
+		currentAnimation.GotoNextFrame();
 	}
 	
 	override void Tick()
@@ -114,50 +154,50 @@ Class ZSAnimator : Thinker
 			else
 			{
 				let n = currentAnimation.currentNode;
+				console.printf("node: %p", n);
 				if (n)
 				{
-					console.printf("i %d", currentTicks);
+					// console.printf("i %d", currentTicks);
 					for (int i = 0; i < n.frames.size(); i++)
 					{
 						let f = n.frames[i];
 						if (f.pspId != ZSAnimator.PlayerView)
 						{
-							/*if (f.pspId == PSP_WEAPON)
-							{
-								ply.mo.A_WeaponOffset(f.pspOffsets.x*-1, f.pspOffsets.y*-1 + WEAPONTOP, WOF_INTERPOLATE);
-							}
-							else
-							{
-								ply.mo.A_OverlayFlags(f.pspId, PSPF_ADDWEAPON, false);
-								//ply.mo.A_OverlayFlags(f.pspId, PSPF_PIVOTPERCENT, true);
-								ply.mo.A_OverlayOffset(f.pspId, f.pspOffsets.x*-1, f.pspOffsets.y*-1, WOF_INTERPOLATE);
-							}*/
-							//ply.mo.A_OverlayPivot(f.pspId, 0.5, 0.5);
-							//ply.mo.A_OverlayRotate(f.pspId, f.pspAngle);
-							
 							let psp = ply.findpsprite(f.pspId);
 							if (psp)
 							{
 								psp.bPivotPercent = true;
-								let xOffs = f.pspOffsets.x*-1;
-								let yOffs = f.pspOffsets.y*-1;
-								if (f.pspId == PSP_WEAPON)
+								let xOffs = f.pspOffsets.x*-1 + 160.0;
+								let yOffs = f.pspOffsets.y*-1 + 100.0;//-WEAPONTOP;
+								// if (f.pspId == PSP_WEAPON)
+								// {
+									// yOffs += WEAPONTOP;
+								// }
+								if (!psp.bAddWeapon)
 								{
-									yOffs += WEAPONTOP;
+									yOffs += WEAPONTOP/1.2;
+									yOffs /= 1.2;
 								}
-								psp.bInterpolate = false;//f.interpolate;
+								
+								psp.bInterpolate = f.interpolate;
+								console.printf("frame %d psp %d interpolate %d", currentTicks, f.pspId, psp.bInterpolate);
 								
 								psp.x = xOffs;
 								psp.y = yOffs;
-								if (!f.interpolate)
+								if (!psp.bInterpolate)
 								{
 									psp.oldx = psp.x;
 									psp.oldy = psp.y;
 								}
+								
+								if (f.flipy)
+								{
+									psp.bflip = true;
+								}
 								psp.pivot = (0.5,0.5);
 								psp.scale = f.pspScale;
-								psp.rotation = f.angles.x;
-								console.printf("rotation %f %f", f.angles.x, psp.rotation);
+								psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
+								// console.printf("layer %d rotation %f %f", f.pspId, f.angles.x, psp.rotation);
 							}
 						}
 						else
@@ -169,7 +209,8 @@ Class ZSAnimator : Thinker
 							ply.ReadyWeapon.FOVScale = f.pspscale.x;
 						}
 					}
-					currentAnimation.currentNode = n.next;
+					
+					currentAnimation.GotoNextFrame();
 				}
 			}
 			currentTicks += 1;
