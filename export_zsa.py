@@ -64,7 +64,7 @@ class zScriptFrame:
         return 'frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}))'.format(self.layerName, self.frame,
             self.rotation.x, self.rotation.y, self.rotation.z,
             self.posOffs.z, self.posOffs.y,
-            self.scale.x, self.scale.y,
+            self.scale.z, self.scale.y,
             self.interpolation)
 
 def write_file(fname, zAnim):
@@ -82,7 +82,7 @@ def get_last_keyframe(fcurve, frame):
             
     return kf
         
-def exportZS(context, filename, animName, actionName, posScale = 500.0):
+def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult):
     scene = bpy.data.scenes['Scene']
     action = bpy.data.actions[actionName]
     obj = context.object
@@ -103,6 +103,9 @@ def exportZS(context, filename, animName, actionName, posScale = 500.0):
             if (not bone.select):
                 continue
             
+            if (bone.name.startswith('!')):
+                continue
+            
             #initialize the properties for this bone
             if not bone.name in properties:
                 properties[bone.name] = {}
@@ -121,6 +124,8 @@ def exportZS(context, filename, animName, actionName, posScale = 500.0):
                 eval = math.degrees(eval)
             if (propname == 'location'):
                 eval *= posScale
+            if (propname == 'scale' and bone.name != 'ZSAnimator.PlayerView'):
+                eval *= spriteScaleMult
             properties[bone.name][propname].append(eval)
             
             # we need to remember when interpolation should not be applied, so we can get the last keyframe before the current one
@@ -153,10 +158,11 @@ class ZScriptExport(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     # initialize properties in export field
     animName: bpy.props.StringProperty(name="Animation name", default="")
     actionName: bpy.props.StringProperty(name="Action name", default="")
-    posScale: bpy.props.FloatProperty(name="Position Scale", description="Position scalar", default=500.0, min=1.0, step=0, precision=4)
+    posScale: bpy.props.FloatProperty(name="Position Scale", description="Position scalar", default=100.0, min=0.01, step=0.01, precision=4)
+    spriteScaleMult: bpy.props.FloatProperty(name="Sprites Scale Multiplier", description="Multiply the scale of sprites by this value", default=1.0, min=0.01, step=0.01, precision=4)
     
     def execute(self, context):
-        exportZS(context, self.properties.filepath, self.properties.animName, self.properties.actionName, self.properties.posScale)
+        exportZS(context, self.properties.filepath, self.properties.animName, self.properties.actionName, self.properties.posScale, self.properties.spriteScaleMult)
         return {'FINISHED'}
 #        unregister()
 
