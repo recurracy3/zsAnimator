@@ -15,8 +15,9 @@ class ZSAnimationFrame
 	bool interpolate;
 	bool flipx;
 	bool flipy;
+	string sprite;
 	
-	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate)
+	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, string sprite)
 	{
 		let frame = ZSAnimationFrame(New("ZSAnimationFrame"));
 		frame.frameNum = frameNum;
@@ -35,12 +36,20 @@ class ZSAnimationFrame
 		
 		frame.pspScale = (abs(frame.pspScale.X), abs(frame.pspScale.Y));
 		frame.interpolate = interpolate;
+		
+		frame.sprite = sprite;
 		return frame;
 	}
 	
 	void PrintFrameInfo()
 	{
-		console.printf("psp %d frame %d a: (%.2f %.2f %.2f) p: (%.2f %.2f) s: (%.2f %.2f) i: %d", pspId, frameNum, angles.x, angles.y, angles.z, pspOffsets.x, pspOffsets.y, pspScale.x, pspScale.y, interpolate);
+		console.printf("psp %d frame %d a: (%.2f %.2f %.2f) p: (%.2f %.2f) s: (%.2f %.2f) i: %d s: %s", 
+			pspId, frameNum, 
+			angles.x, angles.y, angles.z, 
+			pspOffsets.x, pspOffsets.y, 
+			pspScale.x, pspScale.y, 
+			interpolate,
+			sprite);
 	}
 }
 
@@ -83,6 +92,8 @@ Class ZSAnimation
 	ZSAnimationFrameNode firstNode;
 	ZSAnimationFrameNode lastNode;
 	bool flipx, flipy;
+	bool spritesLinked;
+	int lastTickDiff;
 	
 	// It's possible for animations to fall 'inbetween' tics defined by Zdoom, aka the default tic rate of 35/s, thanks to the variable framerate.
 	// When this happens we need to determine the positions, rotations and scale between the last frame and the current frame as a percentage.
@@ -160,24 +171,6 @@ Class ZSAnimation
 		}
 		currentTicks += abs(playbackSpeed*ticRate);
 		return currentNode != NULL;
-		/*int ticks = currentTicks;
-		currentTicks += playbackSpeed;
-		int diff = int(currentTicks) - ticks;
-		for (int i = 0; i < diff; i++)
-		{
-			if (framerate >= 0.0)
-			{
-				if (currentNode.next)
-					currentNode = currentNode.next;
-			}
-			else
-			{
-				if (currentNode.prev)
-					currentNode = currentNode.prev;
-			}
-		}
-			
-		return currentNode != NULL;*/
 	}
 	
 	ZSAnimationFrame EvaluateFrame(int layer, double ticksA, double ticksB)
@@ -206,7 +199,7 @@ Class ZSAnimation
 			return NULL;
 		}
 		
-		let ret = ZSAnimationFrame.Create(layer, int(ticksA), (0,0,0), (0,0), (0,0), false);
+		let ret = ZSAnimationFrame.Create(layer, int(ticksA), (0,0,0), (0,0), (0,0), false, "");
 		
 		ZSAnimationFrame frameA = NULL;
 		ZSAnimationFrame frameB = NULL;
@@ -233,6 +226,8 @@ Class ZSAnimation
 		if (frameA && frameB)
 		{
 			ret.interpolate = frameA.interpolate;
+			ret.sprite = frameA.sprite;
+			ret.flipy = frameA.flipy;
 			Vector3 rot = (0,0,0);
 			Vector2 pos = (0,0);
 			Vector2 sc = (0,0);
@@ -297,36 +292,41 @@ Class ZSAnimator : Thinker
 		{
 			self.ply = ply;
 			currentAnimation = ZSAnimation(New(animationClass));
-			console.printf("start anim %s", currentAnimation.GetClassName());
+			//console.printf("start anim %s", currentAnimation.GetClassName());
 			currentAnimation.Initialize();
 			currentAnimation.MakeFrameList();
 			currentAnimation.LinkList();
-			
-			if (playbackSpeed >= 0)
-			{
-				currentAnimation.currentNode = currentAnimation.firstNode;
-			}
-			else
-			{
-				currentAnimation.currentNode = currentAnimation.lastNode;
-			}
-			currentAnimation.running = true;
-			currentAnimation.playbackSpeed = playbackSpeed;
 		}
+		if (playbackSpeed >= 0)
+		{
+			currentAnimation.currentNode = currentAnimation.firstNode;
+		}
+		else
+		{
+			currentAnimation.currentNode = currentAnimation.lastNode;
+		}
+		
+		currentAnimation.currentTicks = frame;
+		currentAnimation.running = true;
+		currentAnimation.playbackSpeed = playbackSpeed;
+		currentAnimation.spritesLinked = true;
+		currentAnimation.lastTickDiff = 0;
 	}
 	
-	void GotoNextFrame()
+	void AdvanceAnimations()
 	{
+		if (!currentAnimation)
+			return;
+		
 		currentAnimation.AdvanceAnimation();
 	}
 	
 	void ApplyFrame(ZSAnimationFrame f)
 	{
-		//let f = n.frames[i];
-		//currentAnimation.EvaluateFrame(n.frames[i].pspId, currentAnimation.currentTicks, currentAnimation.currentTicks + currentAnimation.playbackSpeed);
 		if (f.pspId != ZSAnimator.PlayerView)
 		{
 			let psp = ply.findpsprite(f.pspId);
+			
 			if (psp)
 			{
 				psp.bPivotPercent = true;
@@ -360,6 +360,70 @@ Class ZSAnimator : Thinker
 				psp.scale = f.pspScale;
 				psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
 				// console.printf("layer %d rotation %f %f", f.pspId, f.angles.x, psp.rotation);
+				
+				//currentAnimation.spritesLinked = false;
+				if (currentAnimation.spritesLinked && currentAnimation.playbackSpeed != 1.0)
+				{
+					double currentTicks = currentAnimation.currentTicks;
+					double nextTicks = currentTicks + currentAnimation.playbackSpeed;
+					console.printf("curticks %f nextTicks %f", currentTicks, nextTicks);
+					let nextN = currentAnimation.EvaluateNextNode(currentTicks, nextTicks);
+					bool equals = currentAnimation.currentNode == nextN;
+					// the next node is equal to the current node. thus, we must delay the current state.
+					if (equals && currentAnimation.playbackSpeed < 1.0)
+					{
+						console.printf("lengthen ticks");
+						psp.tics += 1;
+					}
+					else if (currentAnimation.playbackSpeed > 1.0)
+					{
+						if (f.pspId != PSP_WEAPON)
+							return;
+						let st = psp.curState;
+						double diff = nextTicks - currentTicks;
+						console.printf("ticks diff %f", diff);
+						
+						if (psp.tics == st.tics)
+						{
+							while (diff > 0)
+							{
+								// we have not adjusted the current psprite duration yet
+								console.printf("diff %f", diff);
+								int ticSubtract = 0;
+								if (psp.tics > 1)
+								{
+									console.printf("base tics %d", st.tics);
+									psp.tics /= currentAnimation.playbackSpeed;
+									ticSubtract = st.tics - psp.tics;
+									console.printf("new tics %d", psp.tics);
+								}
+								else if (psp.tics == 1)
+								{
+									console.printf("setting tics to 0");
+									psp.tics = 0;
+									ticSubtract = 1;
+								}
+								else
+								{
+									ticSubtract = 1;
+								}
+								/*else if (psp.tics == 0)
+								{
+									console.printf("skipping state");
+									if (st.NextState)
+									{
+										st = st.NextState;
+										psp.SetState(st);
+										ticSubtract = 1;
+									}
+								}*/
+								console.printf("psp.tics %d", psp.tics);
+								diff -= ticSubtract;
+								console.printf("sub %d new diff %f", ticSubtract, diff);
+							}
+						}
+					}
+				}
 			}
 		}
 		else
@@ -399,7 +463,7 @@ Class ZSAnimator : Thinker
 			else
 			{
 				let n = currentAnimation.currentNode;
-				console.printf("ticks %f", currentAnimation.currentTicks);
+				//console.printf("ticks %f", currentAnimation.currentTicks);
 				if (n)
 				{
 					// console.printf("i %d", currentTicks);
@@ -409,10 +473,10 @@ Class ZSAnimator : Thinker
 						let f = currentAnimation.EvaluateFrame(n.frames[i].pspId, currentAnimation.currentTicks, currentAnimation.currentTicks + currentAnimation.playbackSpeed);
 						ApplyFrame(f);
 					}
-					
-					currentAnimation.AdvanceAnimation();
 				}
 			}
 		}
+		
+		AdvanceAnimations();
 	}
 }

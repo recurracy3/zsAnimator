@@ -28,12 +28,15 @@ class zScriptAnimation:
         self.frameCount = 0
         self.frames = []
         self.className = 'ZSAnimation' + animationName
+        self.spritesLinked = False
     
     # convert this data to a zscript file
     def toZscript(self):
         result = ''
         result += 'class {0} : ZSAnimation {{\n'.format(self.className)
-        result += '\toverride void Initialize() {{ frameCount = {0}; }}\n'.format(self.frameCount)
+        result += '\toverride void Initialize() {{\n\t\tframeCount = {0}; \n'.format(self.frameCount)
+        result += '\t\tspritesLinked = {0}; \n'.format(self.spritesLinked)
+        result += '\t}\n'
         result += '\toverride void MakeFrameList() {\n'
         for frame in self.frames:
             result += '\t' + frame.toZscript() + ';\n'
@@ -51,6 +54,8 @@ class zScriptFrame:
         self.ang = 0
         self.boneData = {}
         self.interpolation = True
+        self.sprite = ""
+        self.duration = 0
         
     #convert this data to a zscript line
     def toZscript(self):
@@ -61,11 +66,15 @@ class zScriptFrame:
         # {5}-{6}: pspoffset x y
         # {7}-{8}: pspscale x y
         # {9}: interpolation
-        return 'frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}))'.format(self.layerName, self.frame,
+        # {10}: sprite
+        # {11}: duration
+        return 'frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}, "{10}, {11}"))'.format(self.layerName, self.frame,
             self.rotation.x, self.rotation.y, self.rotation.z,
             self.posOffs.z, self.posOffs.y,
             self.scale.z, self.scale.y,
-            self.interpolation)
+            self.interpolation,
+            self.sprite,
+            self.duration)
 
 def write_file(fname, zAnim):
     with open(fname, 'w', encoding='utf-8') as f:
@@ -82,7 +91,7 @@ def get_last_keyframe(fcurve, frame):
             
     return kf
         
-def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult):
+def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult, spritesLinked):
     scene = bpy.data.scenes['Scene']
     action = bpy.data.actions[actionName]
     obj = context.object
@@ -106,6 +115,8 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult)
             if (bone.name.startswith('!')):
                 continue
             
+            print('checking bone {0}'.format(bone.name))
+            
             #initialize the properties for this bone
             if not bone.name in properties:
                 properties[bone.name] = {}
@@ -113,6 +124,8 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult)
                 properties[bone.name]['rotation_euler'] = []
                 properties[bone.name]['scale'] = []
                 properties[bone.name]['interpolation'] = 'BEZIER'
+                properties[bone.name]['sprite'] = ""
+                properties[bone.name]['duration'] = 0
             
             # calculate the curve positions for this frame
             eval = fc.evaluate(framenum)
@@ -133,6 +146,18 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult)
             if keyframe != None:
                 properties[bone.name]['interpolation'] = keyframe.interpolation
                 
+            #get the sprite for this frame, if applicable
+            for child in obj.children:
+                if (child.parent_bone == bone.name and !child.hide_viewport):
+                    print(child.name)
+                    if 'sprite' in child:
+                        properties[bone.name]['sprite'] = child['sprite']
+                    
+                    if 'duration' in child:
+                        properties[bone.name]['duration'] = child['duration']
+                        
+                    break
+                
             print(properties)
         
         for key in properties:
@@ -145,10 +170,12 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult)
             zFrame.posOffs = mathutils.Vector((val['location'][0], val['location'][1], val['location'][2]))
             zFrame.scale = mathutils.Vector((val['scale'][0], val['scale'][1], val['scale'][2]))
             zFrame.interpolation = True if val['interpolation'] != 'LINEAR' else False
+            zFrame.sprite = val['sprite']
                 
             zAnim.frames.append(zFrame)
     
     zAnim.frameCount = scene.frame_end - scene.frame_start
+    zAnim.spritesLinked = spritesLinked
     write_file(filename, zAnim)
 
 class ZScriptExport(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
@@ -160,9 +187,10 @@ class ZScriptExport(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     actionName: bpy.props.StringProperty(name="Action name", default="")
     posScale: bpy.props.FloatProperty(name="Position Scale", description="Position scalar", default=100.0, min=0.01, step=0.01, precision=4)
     spriteScaleMult: bpy.props.FloatProperty(name="Sprites Scale Multiplier", description="Multiply the scale of sprites by this value", default=1.0, min=0.01, step=0.01, precision=4)
+    spritesLinked: bpy.props.BoolProperty(name='Link Sprites', description='If enabled, ZSAnimator will automatically apply the sprites to the layers', default=False)
     
     def execute(self, context):
-        exportZS(context, self.properties.filepath, self.properties.animName, self.properties.actionName, self.properties.posScale, self.properties.spriteScaleMult)
+        exportZS(context, self.properties.filepath, self.properties.animName, self.properties.actionName, self.properties.posScale, self.properties.spriteScaleMult, self.properties.spritesLinked)
         return {'FINISHED'}
 #        unregister()
 
