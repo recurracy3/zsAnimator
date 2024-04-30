@@ -151,14 +151,14 @@ Class ZSAnimation
 		return n;
 	}
 	
-	bool AdvanceAnimation()
+	bool AdvanceAnimation(double ticRate = 1.0)
 	{
 		let n = EvaluateNextNode(currentTicks, currentTicks + playbackSpeed);
 		if (n != currentNode)
 		{
 			currentNode = n;
 		}
-		currentTicks += abs(playbackSpeed);
+		currentTicks += abs(playbackSpeed*ticRate);
 		return currentNode != NULL;
 		/*int ticks = currentTicks;
 		currentTicks += playbackSpeed;
@@ -272,6 +272,12 @@ Class ZSAnimator : Thinker
         return d;
     }
 	
+	static ZSAnimator Create()
+	{
+		ZSAnimator animator = ZSanimator(New("ZSAnimator"));
+		return animator;
+	}
+	
 	enum SpecialAnimNums
 	{
 		PlayerView = -5000,
@@ -280,9 +286,11 @@ Class ZSAnimator : Thinker
 	
 	ZSAnimation currentAnimation;
 	PlayerInfo ply;
+	bool manual;
+	bool forceDisableInterpolation;
 	
 	// This function can be used to start an animation directly and let ZSAnimator handle everything.
-	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, double playbackSpeed = 1.0)
+	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, double playbackSpeed = 1.0, bool manual = false)
 	{
 		playbackSpeed *= CVar.FindCVar("zsa_playbackSpeed").GetFloat();
 		if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
@@ -334,7 +342,7 @@ Class ZSAnimator : Thinker
 					yOffs /= 1.2;
 				}
 				
-				psp.bInterpolate = f.interpolate;
+				psp.bInterpolate = f.interpolate && !forceDisableInterpolation;
 				
 				psp.x = xOffs;
 				psp.y = yOffs;
@@ -367,6 +375,18 @@ Class ZSAnimator : Thinker
 	override void Tick()
 	{
 		super.Tick();
+		
+		if (currentAnimation)
+		{
+			if (currentAnimation.currentTicks > currentAnimation.frameCount)
+			{
+				currentAnimation.Destroy();
+				currentAnimation = null;
+				return; 
+			}
+		}
+		
+		if (manual) { return; }
 		if (currentAnimation)
 		{
 			// TODO: Rework this to allow multiple layered animations at once.
