@@ -66,15 +66,11 @@ class zScriptFrame:
         # {5}-{6}: pspoffset x y
         # {7}-{8}: pspscale x y
         # {9}: interpolation
-        # {10}: sprite
-        # {11}: duration
-        return 'frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}, "{10}, {11}"))'.format(self.layerName, self.frame,
+        return 'frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}))'.format(self.layerName, self.frame,
             self.rotation.x, self.rotation.y, self.rotation.z,
             self.posOffs.z, self.posOffs.y,
             self.scale.z, self.scale.y,
-            self.interpolation,
-            self.sprite,
-            self.duration)
+            self.interpolation)
 
 def write_file(fname, zAnim):
     with open(fname, 'w', encoding='utf-8') as f:
@@ -147,16 +143,16 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult,
                 properties[bone.name]['interpolation'] = keyframe.interpolation
                 
             #get the sprite for this frame, if applicable
-            for child in obj.children:
-                if (child.parent_bone == bone.name and !child.hide_viewport):
-                    print(child.name)
-                    if 'sprite' in child:
-                        properties[bone.name]['sprite'] = child['sprite']
+#            for child in obj.children:
+#                if (child.parent_bone == bone.name and !child.hide_viewport):
+#                    print(child.name)
+#                    if 'sprite' in child:
+#                        properties[bone.name]['sprite'] = child['sprite']
                     
-                    if 'duration' in child:
-                        properties[bone.name]['duration'] = child['duration']
+#                    if 'duration' in child:
+#                        properties[bone.name]['duration'] = child['duration']
                         
-                    break
+#                    break
                 
             print(properties)
         
@@ -170,7 +166,7 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult,
             zFrame.posOffs = mathutils.Vector((val['location'][0], val['location'][1], val['location'][2]))
             zFrame.scale = mathutils.Vector((val['scale'][0], val['scale'][1], val['scale'][2]))
             zFrame.interpolation = True if val['interpolation'] != 'LINEAR' else False
-            zFrame.sprite = val['sprite']
+#            zFrame.sprite = val['sprite']
                 
             zAnim.frames.append(zFrame)
     

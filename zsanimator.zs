@@ -17,7 +17,7 @@ class ZSAnimationFrame
 	bool flipy;
 	string sprite;
 	
-	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, string sprite)
+	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate)
 	{
 		let frame = ZSAnimationFrame(New("ZSAnimationFrame"));
 		frame.frameNum = frameNum;
@@ -36,8 +36,6 @@ class ZSAnimationFrame
 		
 		frame.pspScale = (abs(frame.pspScale.X), abs(frame.pspScale.Y));
 		frame.interpolate = interpolate;
-		
-		frame.sprite = sprite;
 		return frame;
 	}
 	
@@ -199,7 +197,7 @@ Class ZSAnimation
 			return NULL;
 		}
 		
-		let ret = ZSAnimationFrame.Create(layer, int(ticksA), (0,0,0), (0,0), (0,0), false, "");
+		let ret = ZSAnimationFrame.Create(layer, int(ticksA), (0,0,0), (0,0), (0,0), false);
 		
 		ZSAnimationFrame frameA = NULL;
 		ZSAnimationFrame frameB = NULL;
@@ -309,7 +307,6 @@ Class ZSAnimator : Thinker
 		currentAnimation.currentTicks = frame;
 		currentAnimation.running = true;
 		currentAnimation.playbackSpeed = playbackSpeed;
-		currentAnimation.spritesLinked = true;
 		currentAnimation.lastTickDiff = 0;
 	}
 	
