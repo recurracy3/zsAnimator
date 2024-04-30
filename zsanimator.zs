@@ -366,7 +366,6 @@ Class ZSAnimator : Thinker
 				{
 					double currentTicks = currentAnimation.currentTicks;
 					double nextTicks = currentTicks + currentAnimation.playbackSpeed;
-					console.printf("curticks %f nextTicks %f", currentTicks, nextTicks);
 					let nextN = currentAnimation.EvaluateNextNode(currentTicks, nextTicks);
 					bool equals = currentAnimation.currentNode == nextN;
 					// the next node is equal to the current node. thus, we must delay the current state.
@@ -377,49 +376,44 @@ Class ZSAnimator : Thinker
 					}
 					else if (currentAnimation.playbackSpeed > 1.0)
 					{
-						if (f.pspId != PSP_WEAPON)
-							return;
 						let st = psp.curState;
 						double diff = nextTicks - currentTicks;
-						console.printf("ticks diff %f", diff);
 						
-						if (psp.tics == st.tics)
+						// this psp does not loop, or its next state does not exist, so we need to adjust the frames, possibly even skipping to the next frame if necessary
+						if (st.nextstate == NULL || st.nextstate != psp.curState)
 						{
-							while (diff > 0)
+							//int framesToSkip = int(max(diff, 1));
+							int framesToSkip = 1;
+							if (currentTicks % 1.0 == 0.0)
 							{
-								// we have not adjusted the current psprite duration yet
-								console.printf("diff %f", diff);
-								int ticSubtract = 0;
-								if (psp.tics > 1)
+								console.printf("%f do a skip!!! diff %f, skip %d psp %d", currentTicks, diff, framesToSkip, psp.tics);
+								while (framesToSkip > 0)
 								{
-									console.printf("base tics %d", st.tics);
-									psp.tics /= currentAnimation.playbackSpeed;
-									ticSubtract = st.tics - psp.tics;
-									console.printf("new tics %d", psp.tics);
-								}
-								else if (psp.tics == 1)
-								{
-									console.printf("setting tics to 0");
-									psp.tics = 0;
-									ticSubtract = 1;
-								}
-								else
-								{
-									ticSubtract = 1;
-								}
-								/*else if (psp.tics == 0)
-								{
-									console.printf("skipping state");
-									if (st.NextState)
+									if (psp.tics > 1)
 									{
-										st = st.NextState;
-										psp.SetState(st);
-										ticSubtract = 1;
+										psp.tics -= 1;
+										framesToSkip -= 1;
 									}
-								}*/
-								console.printf("psp.tics %d", psp.tics);
-								diff -= ticSubtract;
-								console.printf("sub %d new diff %f", ticSubtract, diff);
+									else if (psp.tics == 1)
+									{
+										framesToSkip -= 1;
+										
+										if (st.nextState)
+										{
+											psp.SetState(st.nextState);
+											st = psp.curstate;
+										}
+									}
+								}
+							}
+						}
+						else if (st.nextstate && st.nextstate == psp.curState)
+						{
+							if (currentTicks % 1.0 == 0.0)
+							{
+								console.printf("looping");
+								console.printf("this state loops, mod currentTicks == 0.0, skipping");
+								psp.setstate(st.nextstate);
 							}
 						}
 					}
