@@ -16,6 +16,7 @@ class ZSAnimationFrame
 	bool flipx;
 	bool flipy;
 	string sprite;
+	ZSAnimationFrameNode node;
 	
 	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate)
 	{
@@ -114,6 +115,7 @@ Class ZSAnimation
 				if (frame.frameNum == f)
 				{
 					last.frames.push(frame);
+					frame.node = n;
 					//console.printf("pushed frame %d cur. size %d", f, n.frames.size());
 				}
 			}
@@ -283,7 +285,7 @@ Class ZSAnimator : Thinker
 	bool forceDisableInterpolation;
 	
 	// This function can be used to start an animation directly and let ZSAnimator handle everything.
-	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, double playbackSpeed = 1.0, bool manual = false)
+	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0, bool manual = false)
 	{
 		playbackSpeed *= CVar.FindCVar("zsa_playbackSpeed").GetFloat();
 		if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
@@ -322,7 +324,7 @@ Class ZSAnimator : Thinker
 	{
 		if (f.pspId != ZSAnimator.PlayerView)
 		{
-			let psp = ply.findpsprite(f.pspId);
+			let psp = ply.FindPSprite(f.pspId);
 			
 			if (psp)
 			{
@@ -339,7 +341,13 @@ Class ZSAnimator : Thinker
 					yOffs /= 1.2;
 				}
 				
-				psp.bInterpolate = f.interpolate && !forceDisableInterpolation;
+				console.printf("psp %d first tic %d", f.pspid, psp.firstTic);
+				if (psp.firstTic)
+				{
+					psp.oldx = xOffs;
+					psp.oldy = yOffs;
+				}
+				psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
 				
 				psp.x = xOffs;
 				psp.y = yOffs;
@@ -376,7 +384,8 @@ Class ZSAnimator : Thinker
 						double diff = nextTicks - currentTicks;
 						
 						// this psp does not loop, or its next state does not exist, so we need to adjust the frames, possibly even skipping to the next frame if necessary
-						if (st.nextstate == NULL || st.nextstate != psp.curState)
+						//if (st && st.nextstate == NULL || st.nextstate != psp.curState)
+						if (st)
 						{
 							if (nextN && nextN.frames.size() >= 1 && psp.tics > 0)
 							{
@@ -412,13 +421,13 @@ Class ZSAnimator : Thinker
 								}
 							}
 						}
-						else if (st.nextstate && st.nextstate == psp.curState)
+						/*else if (st && st.nextstate && st.nextstate == psp.curState)
 						{
 							if (currentTicks % 1.0 == 0.0)
 							{
 								psp.setstate(st.nextstate);
 							}
-						}
+						}*/
 					}
 				}
 			}
