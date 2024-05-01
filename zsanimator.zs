@@ -378,11 +378,10 @@ Class ZSAnimator : Thinker
 						// this psp does not loop, or its next state does not exist, so we need to adjust the frames, possibly even skipping to the next frame if necessary
 						if (st.nextstate == NULL || st.nextstate != psp.curState)
 						{
-							if (nextN && nextN.frames.size() >= 1)
+							if (nextN && nextN.frames.size() >= 1 && psp.tics > 0)
 							{
 								int ticsToSub = (nextN.frames[0].frameNum - f.frameNum) - 1;
-								int loops = 10;
-								while (ticsToSub > 0 && loops > 0)
+								while (ticsToSub > 0)
 								{
 									int pspTics = psp.tics;
 									int subtracted;
@@ -400,6 +399,10 @@ Class ZSAnimator : Thinker
 											psp.setstate(st.nextstate);
 											st = psp.curstate;
 											ticsToSub -= 1;
+										}
+										else
+										{
+											ticsToSub = 0;
 										}
 									}
 									else if (pspTics <= -1)
