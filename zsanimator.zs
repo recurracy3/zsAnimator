@@ -183,7 +183,7 @@ Class ZSAnimation
 		if (dontEval)
 		{
 			let n = currNode;
-			if (tickPerc >= 0.99)
+			if (tickPerc >= 1-margin)
 				n = nextNode;
 				
 			for (int i = 0; i < n.frames.Size(); i++)
@@ -368,7 +368,6 @@ Class ZSAnimator : Thinker
 					// the next node is equal to the current node. thus, we must delay the current state.
 					if (equals && currentAnimation.playbackSpeed < 1.0)
 					{
-						console.printf("lengthen ticks");
 						psp.tics += 1;
 					}
 					else if (currentAnimation.playbackSpeed > 1.0)
@@ -379,27 +378,33 @@ Class ZSAnimator : Thinker
 						// this psp does not loop, or its next state does not exist, so we need to adjust the frames, possibly even skipping to the next frame if necessary
 						if (st.nextstate == NULL || st.nextstate != psp.curState)
 						{
-							//int framesToSkip = int(max(diff, 1));
-							int framesToSkip = 1;
-							if (currentTicks % 1.0 == 0.0)
+							if (nextN && nextN.frames.size() >= 1)
 							{
-								console.printf("%f do a skip!!! diff %f, skip %d psp %d", currentTicks, diff, framesToSkip, psp.tics);
-								while (framesToSkip > 0)
+								int ticsToSub = (nextN.frames[0].frameNum - f.frameNum) - 1;
+								int loops = 10;
+								while (ticsToSub > 0 && loops > 0)
 								{
-									if (psp.tics > 1)
+									int pspTics = psp.tics;
+									int subtracted;
+									if (pspTics > 1)
 									{
-										psp.tics -= 1;
-										framesToSkip -= 1;
+										int newtics = max(pspTics - ticsToSub, 1);
+										subtracted = pspTics - newtics;
+										ticsToSub -= subtracted;
+										psp.tics = newtics;
 									}
-									else if (psp.tics == 1)
+									else if (pspTics == 1)
 									{
-										framesToSkip -= 1;
-										
-										if (st.nextState)
+										if (st.nextstate)
 										{
-											psp.SetState(st.nextState);
+											psp.setstate(st.nextstate);
 											st = psp.curstate;
+											ticsToSub -= 1;
 										}
+									}
+									else if (pspTics <= -1)
+									{
+										ticsToSub -= 1;
 									}
 								}
 							}
@@ -408,8 +413,6 @@ Class ZSAnimator : Thinker
 						{
 							if (currentTicks % 1.0 == 0.0)
 							{
-								console.printf("looping");
-								console.printf("this state loops, mod currentTicks == 0.0, skipping");
 								psp.setstate(st.nextstate);
 							}
 						}
