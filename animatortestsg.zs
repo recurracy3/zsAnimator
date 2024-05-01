@@ -1,4 +1,4 @@
-class ZSAnimationShotgunFire : ZSAnimation {
+class ZSAnimationZSAnimationShotgunFire : ZSAnimation {
 	override void Initialize() {
 		frameCount = 36; 
 		spritesLinked = True; 

@@ -2,6 +2,7 @@ version "4.12"
 
 #include "zsanimator.zs"
 #include "ssgfire.zs"
+#include "shotgunfire.zs"
 
 class ZSASSG : SuperShotgun replaces SuperShotgun
 {
@@ -43,8 +44,19 @@ class ZSASSG : SuperShotgun replaces SuperShotgun
 	}
 }
 
-/*class ZSAShotgun : Shotgun replaces Shotgun
+class ZSAShotgun : Shotgun replaces Shotgun
 {
+	action void A_ZSAWeaponReady(int flags = 0)
+	{
+		if (!player) return;
+														DoReadyWeaponToSwitch(player, !(flags & WRF_NoSwitch));
+		if ((flags & WRF_NoFire) != WRF_NoFire)			DoReadyWeaponToFire(player.mo, !(flags & WRF_NoPrimary), !(flags & WRF_NoSecondary));
+		//if (!(flags & WRF_NoBob))						DoReadyWeaponToBob(player);
+
+		player.WeaponState |= GetButtonStateFlags(flags);														
+		DoReadyWeaponDisableSwitch(player, flags & WRF_DisableSwitch);
+	}
+	
 	Default
 	{
 		Weapon.SlotNumber 3;
@@ -54,23 +66,28 @@ class ZSASSG : SuperShotgun replaces SuperShotgun
 	{
 		ZSAnimator animator = ZSanimator(New("ZSAnimator"));
 		animator.StartAnimation(player, "ZSAnimationShotgunFire");
+		A_Overlay(PSP_FLASH, "Flash");
+		A_OverlayFlags(PSP_FLASH, PSPF_ADDWEAPON, false);
 	}
 	
 	States
 	{
+		Ready:
+			SHTG A 1 A_ZSAWeaponReady();
+			loop;
 		Fire:
 			SHTG A 0 A_FireShotgun();
 			SHTG A 0 A_Test();
-			SHTG A 20;
-			SHTG B 3;
-			SHTG C 8;
-			SHTG D 5;
-			SHTG C 3;
+			SHTG A 9;
+			SHTG B 5;
+			SHTG C 4;
+			SHTG D 3;
+			SHTG C 6;
 			SHTG B 4;
-			SHTG A 7;
+			SHTG A 6;
 			goto Ready;	
 		Flash:
 			SHTF AB 1 bright;
 			stop;
 	}
-}*/
+}
