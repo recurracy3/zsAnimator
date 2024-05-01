@@ -320,6 +320,66 @@ Class ZSAnimator : Thinker
 		currentAnimation.AdvanceAnimation();
 	}
 	
+	void LinkPSprite(ZSAnimationFrame f, PSprite psp)
+	{
+		if (currentAnimation.spritesLinked && currentAnimation.playbackSpeed != 1.0)
+		{
+			double currentTicks = currentAnimation.currentTicks;
+			double nextTicks = currentTicks + currentAnimation.playbackSpeed;
+			let nextN = currentAnimation.EvaluateNextNode(currentTicks, nextTicks);
+			bool equals = currentAnimation.currentNode == nextN;
+			// the next node is equal to the current node. thus, we must delay the current state.
+			if (equals && currentAnimation.playbackSpeed < 1.0)
+			{
+				psp.tics += 1;
+			}
+			else if (currentAnimation.playbackSpeed > 1.0)
+			{
+				let st = psp.curState;
+				double diff = nextTicks - currentTicks;
+				
+				// this psp does not loop, or its next state does not exist, so we need to adjust the frames, possibly even skipping to the next frame if necessary
+				//if (st && st.nextstate == NULL || st.nextstate != psp.curState)
+				if (st)
+				{
+					if (nextN && nextN.frames.size() >= 1 && psp.tics > 0)
+					{
+						int ticsToSub = (nextN.frames[0].frameNum - f.frameNum) - 1;
+						while (ticsToSub > 0)
+						{
+							int pspTics = psp.tics;
+							int subtracted;
+							if (pspTics > 1)
+							{
+								int newtics = max(pspTics - ticsToSub, 1);
+								subtracted = pspTics - newtics;
+								ticsToSub -= subtracted;
+								psp.tics = newtics;
+							}
+							else if (pspTics == 1)
+							{
+								if (st.nextstate)
+								{
+									psp.setstate(st.nextstate);
+									st = psp.curstate;
+									ticsToSub -= 1;
+								}
+								else
+								{
+									ticsToSub = 0;
+								}
+							}
+							else if (pspTics <= -1)
+							{
+								ticsToSub -= 1;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
 	void ApplyFrame(ZSAnimationFrame f)
 	{
 		if (f.pspId != ZSAnimator.PlayerView)
@@ -367,69 +427,7 @@ Class ZSAnimator : Thinker
 				// console.printf("layer %d rotation %f %f", f.pspId, f.angles.x, psp.rotation);
 				
 				//currentAnimation.spritesLinked = false;
-				if (currentAnimation.spritesLinked && currentAnimation.playbackSpeed != 1.0)
-				{
-					double currentTicks = currentAnimation.currentTicks;
-					double nextTicks = currentTicks + currentAnimation.playbackSpeed;
-					let nextN = currentAnimation.EvaluateNextNode(currentTicks, nextTicks);
-					bool equals = currentAnimation.currentNode == nextN;
-					// the next node is equal to the current node. thus, we must delay the current state.
-					if (equals && currentAnimation.playbackSpeed < 1.0)
-					{
-						psp.tics += 1;
-					}
-					else if (currentAnimation.playbackSpeed > 1.0)
-					{
-						let st = psp.curState;
-						double diff = nextTicks - currentTicks;
-						
-						// this psp does not loop, or its next state does not exist, so we need to adjust the frames, possibly even skipping to the next frame if necessary
-						//if (st && st.nextstate == NULL || st.nextstate != psp.curState)
-						if (st)
-						{
-							if (nextN && nextN.frames.size() >= 1 && psp.tics > 0)
-							{
-								int ticsToSub = (nextN.frames[0].frameNum - f.frameNum) - 1;
-								while (ticsToSub > 0)
-								{
-									int pspTics = psp.tics;
-									int subtracted;
-									if (pspTics > 1)
-									{
-										int newtics = max(pspTics - ticsToSub, 1);
-										subtracted = pspTics - newtics;
-										ticsToSub -= subtracted;
-										psp.tics = newtics;
-									}
-									else if (pspTics == 1)
-									{
-										if (st.nextstate)
-										{
-											psp.setstate(st.nextstate);
-											st = psp.curstate;
-											ticsToSub -= 1;
-										}
-										else
-										{
-											ticsToSub = 0;
-										}
-									}
-									else if (pspTics <= -1)
-									{
-										ticsToSub -= 1;
-									}
-								}
-							}
-						}
-						/*else if (st && st.nextstate && st.nextstate == psp.curState)
-						{
-							if (currentTicks % 1.0 == 0.0)
-							{
-								psp.setstate(st.nextstate);
-							}
-						}*/
-					}
-				}
+				LinkPSprite(f, psp);
 			}
 		}
 		else
