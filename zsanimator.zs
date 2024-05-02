@@ -397,13 +397,14 @@ Class ZSAnimator : Thinker
 				// {
 					// yOffs += WEAPONTOP;
 				// }
+				psp.bAddWeapon = f.followWeapon;
 				if (!psp.bAddWeapon)
 				{
 					yOffs += WEAPONTOP/1.2;
 					yOffs /= 1.2;
 				}
 				
-				console.printf("psp %d first tic %d", f.pspid, psp.firstTic);
+				//console.printf("psp %d first tic %d", f.pspid, psp.firstTic);
 				if (psp.firstTic)
 				{
 					psp.oldx = xOffs;
