@@ -1,4 +1,4 @@
-### Support me
+### Please consider supporting me
 https://ko-fi.com/recurracy
 
 If you enjoy ZSAnimator and wish to support me please consider my Ko-fi page.
