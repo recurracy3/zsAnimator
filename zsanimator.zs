@@ -16,9 +16,10 @@ class ZSAnimationFrame
 	bool flipx;
 	bool flipy;
 	string sprite;
+	bool followWeapon;
 	ZSAnimationFrameNode node;
 	
-	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate)
+	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool followWeapon = false)
 	{
 		let frame = ZSAnimationFrame(New("ZSAnimationFrame"));
 		frame.frameNum = frameNum;
@@ -37,6 +38,7 @@ class ZSAnimationFrame
 		
 		frame.pspScale = (abs(frame.pspScale.X), abs(frame.pspScale.Y));
 		frame.interpolate = interpolate;
+		frame.followWeapon = followWeapon;
 		return frame;
 	}
 	
