@@ -95,6 +95,7 @@ Class ZSAnimation
 	bool flipx, flipy;
 	bool spritesLinked;
 	int lastTickDiff;
+	bool flipAnimX, flipAnimY;
 	
 	// It's possible for animations to fall 'inbetween' tics defined by Zdoom, aka the default tic rate of 35/s, thanks to the variable framerate.
 	// When this happens we need to determine the positions, rotations and scale between the last frame and the current frame as a percentage.
@@ -287,7 +288,7 @@ Class ZSAnimator : Thinker
 	bool forceDisableInterpolation;
 	
 	// This function can be used to start an animation directly and let ZSAnimator handle everything.
-	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0, bool manual = false)
+	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0, bool manual = false, bool flipAnimX = false, bool flipAnimY = false)
 	{
 		playbackSpeed *= CVar.FindCVar("zsa_playbackSpeed").GetFloat();
 		if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
@@ -312,6 +313,8 @@ Class ZSAnimator : Thinker
 		currentAnimation.running = true;
 		currentAnimation.playbackSpeed = playbackSpeed;
 		currentAnimation.lastTickDiff = 0;
+		currentAnimation.flipAnimX = flipAnimX;
+		currentAnimation.flipAnimY = flipAnimY;
 	}
 	
 	void AdvanceAnimations()
@@ -392,6 +395,7 @@ Class ZSAnimator : Thinker
 			{
 				psp.bPivotPercent = true;
 				let xOffs = f.pspOffsets.x*-1 + 160.0;
+				console.printf("xOffs %d", xOffs);
 				let yOffs = f.pspOffsets.y*-1 + 100.0;//-WEAPONTOP;
 				// if (f.pspId == PSP_WEAPON)
 				// {
@@ -439,7 +443,8 @@ Class ZSAnimator : Thinker
 			ply.mo.A_SetViewRoll(f.angles.x * viewScale, SPF_INTERPOLATE);
 			ply.mo.A_SetViewAngle(f.angles.y * viewScale, SPF_INTERPOLATE);
 			ply.mo.A_SetViewPitch(f.angles.z * viewScale, SPF_INTERPOLATE);
-			ply.ReadyWeapon.FOVScale = f.pspscale.x;
+			if (ply.ReadyWeapon)
+				ply.ReadyWeapon.FOVScale = f.pspscale.x;
 		}
 	}
 	
