@@ -96,6 +96,7 @@ Class ZSAnimation
 	bool spritesLinked;
 	int lastTickDiff;
 	bool flipAnimX, flipAnimY;
+	bool layered;
 	
 	// It's possible for animations to fall 'inbetween' tics defined by Zdoom, aka the default tic rate of 35/s, thanks to the variable framerate.
 	// When this happens we need to determine the positions, rotations and scale between the last frame and the current frame as a percentage.
@@ -395,7 +396,6 @@ Class ZSAnimator : Thinker
 			{
 				psp.bPivotPercent = true;
 				let xOffs = f.pspOffsets.x*-1 + 160.0;
-				console.printf("xOffs %d", xOffs);
 				let yOffs = f.pspOffsets.y*-1 + 100.0;//-WEAPONTOP;
 				// if (f.pspId == PSP_WEAPON)
 				// {
