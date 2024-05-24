@@ -19,7 +19,7 @@ class ZSAnimationFrame
 	bool followWeapon;
 	ZSAnimationFrameNode node;
 	
-	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool followWeapon = false)
+	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool layered = false, bool followWeapon = false)
 	{
 		let frame = ZSAnimationFrame(New("ZSAnimationFrame"));
 		frame.frameNum = frameNum;
@@ -27,16 +27,19 @@ class ZSAnimationFrame
 		frame.angles = angles;
 		frame.pspOffsets = pspOffsets;
 		frame.pspScale = pspScale;
-		if (frame.pspScale.x < 0)
+		if (!layered)
 		{
-			frame.flipx = true;
-		}
-		if (frame.pspScale.y < 0)
-		{
-			frame.flipy = true;
+			if (frame.pspScale.x < 0)
+			{
+				frame.flipx = true;
+			}
+			if (frame.pspScale.y < 0)
+			{
+				frame.flipy = true;
+			}
 		}
 		
-		frame.pspScale = (abs(frame.pspScale.X), abs(frame.pspScale.Y));
+		//frame.pspScale = (abs(frame.pspScale.X), abs(frame.pspScale.Y));
 		frame.interpolate = interpolate;
 		frame.followWeapon = followWeapon;
 		return frame;
@@ -97,6 +100,7 @@ Class ZSAnimation
 	int lastTickDiff;
 	bool flipAnimX, flipAnimY;
 	bool layered;
+	bool destroying;
 	
 	// It's possible for animations to fall 'inbetween' tics defined by Zdoom, aka the default tic rate of 35/s, thanks to the variable framerate.
 	// When this happens we need to determine the positions, rotations and scale between the last frame and the current frame as a percentage.
@@ -283,16 +287,42 @@ Class ZSAnimator : Thinker
 		PSP_HANDS = 1001,
 	}
 	
-	ZSAnimation currentAnimation;
+	//ZSAnimation currentAnimation;
 	PlayerInfo ply;
 	bool manual;
 	bool forceDisableInterpolation;
+	Array<ZSAnimation> currentAnimations;
 	
 	// This function can be used to start an animation directly and let ZSAnimator handle everything.
 	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0, bool manual = false, bool flipAnimX = false, bool flipAnimY = false)
 	{
 		playbackSpeed *= CVar.FindCVar("zsa_playbackSpeed").GetFloat();
-		if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
+		let anim = ZSAnimation(New(animationClass));
+		anim.Initialize();
+		anim.MakeFrameList();
+		anim.LinkList();
+		self.ply = ply;
+		
+		if (playbackSpeed >= 0)
+		{
+			anim.currentNode = anim.firstNode;
+		}
+		else
+		{
+			anim.currentNode = anim.lastNode;
+		}
+		
+		anim.currentTicks = frame;
+		anim.running = true;
+		anim.playbackSpeed = playbackSpeed;
+		anim.lastTickDiff = 0;
+		anim.flipAnimX = flipAnimX;
+		anim.flipAnimY = flipAnimY;
+		currentAnimations.Push(anim);
+		
+		console.printf("start anim %s, flip: %d %d", anim.GetClassName(), flipAnimX, flipAnimY);
+		console.printf("layered %d", anim.layered);
+		/*if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
 		{
 			self.ply = ply;
 			currentAnimation = ZSAnimation(New(animationClass));
@@ -315,31 +345,60 @@ Class ZSAnimator : Thinker
 		currentAnimation.playbackSpeed = playbackSpeed;
 		currentAnimation.lastTickDiff = 0;
 		currentAnimation.flipAnimX = flipAnimX;
-		currentAnimation.flipAnimY = flipAnimY;
+		currentAnimation.flipAnimY = flipAnimY;*/
 	}
 	
 	void AdvanceAnimations()
 	{
-		if (!currentAnimation)
+		Array<ZSAnimation> deletedAnims;
+		for (int i = 0; i < currentAnimations.size(); i++)
+		{
+			let currentAnimation = currentAnimations[i];
+			if (currentAnimation)
+			{
+				if (currentAnimation.currentTicks > currentAnimation.frameCount)
+				{
+					currentAnimation.destroying = true;
+					deletedAnims.Push(currentAnimation);
+				}
+				else
+				{
+					currentAnimation.AdvanceAnimation();
+				}
+			}
+		}
+		
+		for (int i = 0; i < deletedAnims.size(); i++)
+		{
+			let anim = deletedAnims[i];
+			int animIndex = currentAnimations.Find(anim);
+			if (animIndex != currentAnimations.Size())
+			{
+				currentAnimations.Delete(animIndex);
+				anim.Destroy();
+			}
+		}
+		
+		/*if (!currentAnimation)
 			return;
 		
-		currentAnimation.AdvanceAnimation();
+		currentAnimation.AdvanceAnimation();*/
 	}
 	
-	void LinkPSprite(ZSAnimationFrame f, PSprite psp)
+	void LinkPSprite(ZSAnimation anim, ZSAnimationFrame f, PSprite psp)
 	{
-		if (currentAnimation.spritesLinked && currentAnimation.playbackSpeed != 1.0)
+		if (anim.spritesLinked && anim.playbackSpeed != 1.0)
 		{
-			double currentTicks = currentAnimation.currentTicks;
-			double nextTicks = currentTicks + currentAnimation.playbackSpeed;
-			let nextN = currentAnimation.EvaluateNextNode(currentTicks, nextTicks);
-			bool equals = currentAnimation.currentNode == nextN;
+			double currentTicks = anim.currentTicks;
+			double nextTicks = currentTicks + anim.playbackSpeed;
+			let nextN = anim.EvaluateNextNode(currentTicks, nextTicks);
+			bool equals = anim.currentNode == nextN;
 			// the next node is equal to the current node. thus, we must delay the current state.
-			if (equals && currentAnimation.playbackSpeed < 1.0)
+			if (equals && anim.playbackSpeed < 1.0)
 			{
 				psp.tics += 1;
 			}
-			else if (currentAnimation.playbackSpeed > 1.0)
+			else if (anim.playbackSpeed > 1.0)
 			{
 				let st = psp.curState;
 				double diff = nextTicks - currentTicks;
@@ -386,7 +445,7 @@ Class ZSAnimator : Thinker
 		}
 	}
 	
-	void ApplyFrame(ZSAnimationFrame f)
+	void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
 	{
 		if (f.pspId != ZSAnimator.PlayerView)
 		{
@@ -395,8 +454,8 @@ Class ZSAnimator : Thinker
 			if (psp)
 			{
 				psp.bPivotPercent = true;
-				let xOffs = f.pspOffsets.x*-1 + 160.0;
-				let yOffs = f.pspOffsets.y*-1 + 100.0;//-WEAPONTOP;
+				let xOffs = f.pspOffsets.x*(anim.flipAnimX ? 1 : -1);
+				let yOffs = f.pspOffsets.y*(anim.flipAnimY ? -1 : -1);//-WEAPONTOP;
 				// if (f.pspId == PSP_WEAPON)
 				// {
 					// yOffs += WEAPONTOP;
@@ -404,47 +463,95 @@ Class ZSAnimator : Thinker
 				psp.bAddWeapon = f.followWeapon;
 				if (!psp.bAddWeapon)
 				{
-					yOffs += WEAPONTOP/1.2;
-					yOffs /= 1.2;
+					//yOffs += WEAPONTOP/1.2;
+					//yOffs /= 1.2;
 				}
 				
 				//console.printf("psp %d first tic %d", f.pspid, psp.firstTic);
 				if (psp.firstTic)
 				{
+					psp.x = 160.0;
+					psp.y = 100.0;
 					psp.oldx = xOffs;
 					psp.oldy = yOffs;
 				}
 				psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
 				
-				psp.x = xOffs;
-				psp.y = yOffs;
+				if (anim.layered)
+				{
+					psp.x = psp.x + xOffs;
+					psp.y = psp.y + yOffs;
+				}
+				else
+				{
+					psp.x = xOffs + 160.0;
+					psp.y = yOffs + 100.0;
+				}
 				if (!psp.bInterpolate)
 				{
 					psp.oldx = psp.x;
 					psp.oldy = psp.y;
 				}
 				
-				if (f.flipy)
+				if (f.flipy || anim.flipAnimX)
 				{
 					psp.bflip = true;
 				}
+				else
+				{
+					psp.bflip = false;
+				}
 				psp.pivot = (0.5,0.5);
-				psp.scale = f.pspScale;
-				psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
+				//psp.scale = f.pspScale;
+				
+				if (anim.layered)
+				{
+					let sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
+					psp.scale = sc;
+					//psp.scale = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
+					psp.rotation += f.angles.x;
+				}
+				else
+				{
+					if (psp.bflip)
+					{
+						f.pspScale = (abs(f.pspScale.x), abs(f.pspScale.y));
+					}
+					psp.scale = f.pspScale;
+					psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
+				}
+				
+				//psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
 				// console.printf("layer %d rotation %f %f", f.pspId, f.angles.x, psp.rotation);
 				
 				//currentAnimation.spritesLinked = false;
-				LinkPSprite(f, psp);
+				LinkPSprite(anim, f, psp);
 			}
 		}
 		else
 		{
 			float viewScale = CVar.FindCVar('zsa_viewscale').GetFloat();
-			ply.mo.A_SetViewRoll(f.angles.x * viewScale, SPF_INTERPOLATE);
-			ply.mo.A_SetViewAngle(f.angles.y * viewScale, SPF_INTERPOLATE);
-			ply.mo.A_SetViewPitch(f.angles.z * viewScale, SPF_INTERPOLATE);
-			if (ply.ReadyWeapon)
-				ply.ReadyWeapon.FOVScale = f.pspscale.x;
+			double roll = f.angles.x * viewScale;
+			double ang = f.angles.y * viewScale;
+			double pit = f.angles.z * viewScale;
+			
+			if (anim.flipAnimX)
+			{
+				roll *= -1.0;
+				ang *= -1.0;
+			}
+			
+			if (anim.layered)
+			{
+				roll += ply.mo.viewroll;
+				ang += ply.mo.viewangle;
+				pit += ply.mo.viewpitch;
+			}
+			ply.mo.A_SetViewRoll(roll, SPF_INTERPOLATE);
+			ply.mo.A_SetViewAngle(ang, SPF_INTERPOLATE);
+			ply.mo.A_SetViewPitch(pit, SPF_INTERPOLATE);
+			/*if (ply.ReadyWeapon)
+				ply.ReadyWeapon.FOVScale = f.pspscale.x;*/
 		}
 	}
 	
@@ -452,38 +559,26 @@ Class ZSAnimator : Thinker
 	{
 		super.Tick();
 		
-		if (currentAnimation)
-		{
-			if (currentAnimation.currentTicks > currentAnimation.frameCount)
-			{
-				currentAnimation.Destroy();
-				currentAnimation = null;
-				return; 
-			}
-		}
-		
 		if (manual) { return; }
-		if (currentAnimation)
+		for (int i = 0; i < currentAnimations.size(); i++)
 		{
-			// TODO: Rework this to allow multiple layered animations at once.
-			if (currentAnimation.currentTicks > currentAnimation.frameCount)
-			{
-				currentAnimation.Destroy();
-				currentAnimation = null;
-				return;
-			}
-			else
+			let currentAnimation = currentAnimations[i];
+			if (currentAnimation && currentAnimation.currentTicks < currentAnimation.frameCount)
 			{
 				let n = currentAnimation.currentNode;
 				//console.printf("ticks %f", currentAnimation.currentTicks);
 				if (n)
 				{
 					// console.printf("i %d", currentTicks);
-					for (int i = 0; i < n.frames.size(); i++)
+					for (int j = 0; j < n.frames.size(); j++)
 					{
 						//let f = n.frames[i];
-						let f = currentAnimation.EvaluateFrame(n.frames[i].pspId, currentAnimation.currentTicks, currentAnimation.currentTicks + currentAnimation.playbackSpeed);
-						ApplyFrame(f);
+						let f = currentAnimation.EvaluateFrame(n.frames[j].pspId, currentAnimation.currentTicks, currentAnimation.currentTicks + currentAnimation.playbackSpeed);
+						if (f)
+						{
+							console.printf("applying animation %d layer %d frame %d", i, j, f.frameNum);
+							ApplyFrame(currentAnimation, f);
+						}
 					}
 				}
 			}
