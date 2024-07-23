@@ -331,11 +331,15 @@ Class ZSAnimation
 				pos = (pos.x - pspF.pspOffsets.x, 
 					pos.y - pspF.pspOffsets.y);
 					
-				if (pspF.pspId == ZSAnimator.PlayerView)
+				bool flipRotation = (pspf.pspId == ZSAnimator.PlayerView && self.flipAnimX) || frameA.flipy;
+				console.printf("flip rot %d isview %d flipanimx %d flipy %d", flipRotation, pspf.pspId == zsAnimator.PlayerView, self.flipAnimX, frameA.flipy);
+					
+				if (flipRotation)
 				{
-					rot = (rot.x*(self.flipAnimX?1:-1), rot.y*(self.flipAnimX?1:-1), rot.z);
+					rot = (rot.x*(flipRotation?-1:1), rot.y*(flipRotation?-1:1), rot.z);
+					ret.flipy = false;
 				}
-				rot = (rot.x - pspF.angles.x,
+				rot = ((rot.x - pspF.angles.x) + (frameA.flipy ? 0.0 : 0.0),
 					rot.y - pspF.angles.y,
 					rot.z - pspF.angles.z);
 				
@@ -610,9 +614,16 @@ Class ZSAnimator : Thinker
 				if (anim.layered)
 				{
 					let sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
-					psp.scale = sc;
-					//psp.scale = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
+					/*if (psp.bflip)
+					{
+						//sc = (abs(sc.x), abs(sc.y));
+					}*/
+					
+					// psp.scale = sc;
+					psp.scale = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
 					psp.rotation += f.angles.x;
+				
+					//console.printf("psp %d layered %d rot %.3f, %.3f flip %d %d, f.pspscale %f sc %f pspscale %f", f.pspId, anim.layered, f.angles.x, psp.rotation, f.flipy, psp.bflip, f.pspscale.x, sc.x, psp.scale.x);
 				}
 				else
 				{
@@ -621,6 +632,7 @@ Class ZSAnimator : Thinker
 						f.pspScale = (abs(f.pspScale.x), abs(f.pspScale.y));
 					}
 					psp.scale = f.pspScale;
+					//psp.rotation = f.angles.x;// + (f.flipy ? 180.0 : 0.0);
 					psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
 				}
 				
