@@ -37,9 +37,9 @@ class ZSAnimationFrame
 			{
 				frame.flipy = true;
 			}
+			frame.pspScale = (abs(frame.pspScale.X), abs(frame.pspScale.Y));
 		}
 		
-		//frame.pspScale = (abs(frame.pspScale.X), abs(frame.pspScale.Y));
 		frame.interpolate = interpolate;
 		frame.followWeapon = followWeapon;
 		return frame;
@@ -216,6 +216,7 @@ Class ZSAnimation
 		//console.printf("a %f b %f tickperc %f margin %f eval: %d", ticksA, ticksB, tickPerc, margin, dontEval);
 		if (dontEval)
 		{
+			// console.printf("dont eval psp %d tic %d", layer, ticksA);
 			let n = currNode;
 			if (tickPerc >= 1-margin)
 				n = nextNode;
@@ -225,6 +226,7 @@ Class ZSAnimation
 				let f = n.frames[i];
 				if (f.pspId == layer)
 				{
+					// f.PrintFrameInfo();
 					return f;
 				}
 			}
@@ -258,7 +260,7 @@ Class ZSAnimation
 		if (frameA && frameB)
 		{
 			// console.printf("layered %d", self.layered);
-			// console.printf("evaluating frame %f %f %f", ticksA, ticksB, tickPerc);
+			// console.printf("evaluating psp %d frame %f %f %f layered %d", layer, ticksA, ticksB, tickPerc, self.layered);
 			// console.printf("frame A");
 			// frameA.PrintFrameInfo();
 			// console.printf("frame B");
@@ -332,11 +334,11 @@ Class ZSAnimation
 					pos.y - pspF.pspOffsets.y);
 					
 				bool flipRotation = (pspf.pspId == ZSAnimator.PlayerView && self.flipAnimX) || frameA.flipy;
-				console.printf("flip rot %d isview %d flipanimx %d flipy %d", flipRotation, pspf.pspId == zsAnimator.PlayerView, self.flipAnimX, frameA.flipy);
+				// console.printf("flip rot %d isview %d flipanimx %d flipy %d", flipRotation, pspf.pspId == zsAnimator.PlayerView, self.flipAnimX, frameA.flipy);
 					
 				if (flipRotation)
 				{
-					rot = (rot.x*(flipRotation?-1:1), rot.y*(flipRotation?-1:1), rot.z);
+					rot = (rot.x*-1, rot.y*-1, rot.z);
 					ret.flipy = false;
 				}
 				rot = ((rot.x - pspF.angles.x) + (frameA.flipy ? 0.0 : 0.0),
@@ -623,17 +625,23 @@ Class ZSAnimator : Thinker
 					psp.scale = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
 					psp.rotation += f.angles.x;
 				
-					//console.printf("psp %d layered %d rot %.3f, %.3f flip %d %d, f.pspscale %f sc %f pspscale %f", f.pspId, anim.layered, f.angles.x, psp.rotation, f.flipy, psp.bflip, f.pspscale.x, sc.x, psp.scale.x);
+					// console.printf("psp %d layered %d rot %.3f, %.3f flip %d %d, f.pspscale %f sc %f pspscale %f", f.pspId, anim.layered, f.angles.x, psp.rotation, f.flipy, psp.bflip, f.pspscale.x, sc.x, psp.scale.x);
 				}
 				else
 				{
+					// console.printf("psp %d scale %f %f", f.pspid, psp.scale.x, psp.scale.y);
 					if (psp.bflip)
 					{
+						// console.printf("bflip is true %f %f", f.pspscale.x, f.pspscale.y);
 						f.pspScale = (abs(f.pspScale.x), abs(f.pspScale.y));
+						// console.printf("bflip is true %f %f", f.pspscale.x, f.pspscale.y);
 					}
 					psp.scale = f.pspScale;
+					// console.printf("psp %d scale %f %f", f.pspid, psp.scale.x, psp.scale.y);
 					//psp.rotation = f.angles.x;// + (f.flipy ? 180.0 : 0.0);
 					psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
+					// console.printf("psp %d layered %d rot %.3f, %.3f flip %d %d, f.pspscale %f pspscale %f", f.pspId, anim.layered, f.angles.x, psp.rotation, f.flipy, psp.bflip, f.pspscale.x, psp.scale.x);
+					// console.printf("interp %d", psp.binterpolate);
 				}
 				
 				//console.printf("psp %d frame %d xp yp %.3f %.3f", f.pspId, f.frameNum, psp.x, psp.y);
