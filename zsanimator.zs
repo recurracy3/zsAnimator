@@ -320,8 +320,6 @@ Class ZSAnimator : Thinker
 		anim.flipAnimY = flipAnimY;
 		currentAnimations.Push(anim);
 		
-		console.printf("start anim %s, flip: %d %d", anim.GetClassName(), flipAnimX, flipAnimY);
-		console.printf("layered %d", anim.layered);
 		/*if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
 		{
 			self.ply = ply;
@@ -521,6 +519,10 @@ Class ZSAnimator : Thinker
 					psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
 				}
 				
+				//console.printf("psp %d frame %d xp yp %.3f %.3f", f.pspId, f.frameNum, psp.x, psp.y);
+				//console.printf("psp %d frame %d r %.3f", f.pspId, f.frameNum, psp.rotation);
+				//f.PrintFrameInfo();
+				
 				//psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
 				// console.printf("layer %d rotation %f %f", f.pspId, f.angles.x, psp.rotation);
 				
@@ -534,6 +536,7 @@ Class ZSAnimator : Thinker
 			double roll = f.angles.x * viewScale;
 			double ang = f.angles.y * viewScale;
 			double pit = f.angles.z * viewScale;
+			double fovScale = f.pspscale.x * viewScale;
 			
 			if (anim.flipAnimX)
 			{
@@ -546,12 +549,21 @@ Class ZSAnimator : Thinker
 				roll += ply.mo.viewroll;
 				ang += ply.mo.viewangle;
 				pit += ply.mo.viewpitch;
+				if (ply.ReadyWeapon)
+				{
+					if (ply.ReadyWeapon.FOVScale == 0)
+					{
+						ply.ReadyWeapon.FOVScale = 1;
+					}
+					
+					fovScale += ply.ReadyWeapon.FOVScale;
+				}
 			}
 			ply.mo.A_SetViewRoll(roll, SPF_INTERPOLATE);
 			ply.mo.A_SetViewAngle(ang, SPF_INTERPOLATE);
 			ply.mo.A_SetViewPitch(pit, SPF_INTERPOLATE);
-			/*if (ply.ReadyWeapon)
-				ply.ReadyWeapon.FOVScale = f.pspscale.x;*/
+			if (ply.ReadyWeapon)
+				ply.ReadyWeapon.FOVScale = fovScale;
 		}
 	}
 	
@@ -576,7 +588,6 @@ Class ZSAnimator : Thinker
 						let f = currentAnimation.EvaluateFrame(n.frames[j].pspId, currentAnimation.currentTicks, currentAnimation.currentTicks + currentAnimation.playbackSpeed);
 						if (f)
 						{
-							console.printf("applying animation %d layer %d frame %d", i, j, f.frameNum);
 							ApplyFrame(currentAnimation, f);
 						}
 					}
