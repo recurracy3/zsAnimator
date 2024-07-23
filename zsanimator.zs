@@ -47,7 +47,7 @@ class ZSAnimationFrame
 	
 	void PrintFrameInfo()
 	{
-		console.printf("psp %d frame %d a: (%.2f %.2f %.2f) p: (%.2f %.2f) s: (%.2f %.2f) i: %d s: %s", 
+		console.printf("psp %d frame %d a: (%.3f %.3f %.3f) p: (%.3f %.3f) s: (%.3f %.3f) i: %d s: %s", 
 			pspId, frameNum, 
 			angles.x, angles.y, angles.z, 
 			pspOffsets.x, pspOffsets.y, 
@@ -85,6 +85,7 @@ class ZSAnimationFrameNode
 
 Class ZSAnimation
 {
+	PlayerInfo ply;
 	int frameCount;
 	int framerate;
 	double playbackSpeed;
@@ -181,6 +182,28 @@ Class ZSAnimation
 		return currentNode != NULL;
 	}
 	
+	ZSAnimationFrame GetCurrentPSPAsFrame(int layerId)
+	{
+		let ret = ZSAnimationFrame.Create(layerId, 0, (0,0,0), (0,0), (0,0), false);
+		
+		if (layerId != ZSAnimator.PlayerView)
+		{
+			let psp = ply.GetPSprite(layerId);
+			ret.angles = (psp.rotation, 0, 0);
+			ret.pspOffsets = (psp.x, psp.y);
+			ret.pspScale = psp.scale;
+			ret.interpolate = psp.bInterpolate;
+			console.printf("ret interpolate %d", ret.interpolate);
+		}
+		else
+		{
+			ret.angles = (ply.mo.ViewRoll, ply.mo.ViewAngle, ply.mo.ViewPitch);
+			ret.pspScale = (ply.ReadyWeapon.FOVScale, ply.ReadyWeapon.FOVScale);
+		}
+		
+		return ret;
+	}
+	
 	ZSAnimationFrame EvaluateFrame(int layer, double ticksA, double ticksB)
 	{
 		let currNode = currentNode;
@@ -189,6 +212,7 @@ Class ZSAnimation
 		double tickPerc = ticksA%1.0;
 		double margin = 0.01;
 		bool dontEval = tickPerc <= margin || tickPerc >= 1.0-margin;
+		if (self.layered) { dontEval = false; }
 		//console.printf("a %f b %f tickperc %f margin %f eval: %d", ticksA, ticksB, tickPerc, margin, dontEval);
 		if (dontEval)
 		{
@@ -211,14 +235,22 @@ Class ZSAnimation
 		
 		ZSAnimationFrame frameA = NULL;
 		ZSAnimationFrame frameB = NULL;
-		for (int i = 0; i < currNode.frames.size(); i++)
+		if (!self.layered)
 		{
-			let f = currNode.frames[i];
-			if (f.pspId == layer)
+			for (int i = 0; i < currNode.frames.size(); i++)
 			{
-				frameA = f;
-				break;
+				let f = currNode.frames[i];
+				if (f.pspId == layer)
+				{
+					frameA = f;
+					break;
+				}
 			}
+		}
+		else
+		{
+			frameA = GetCurrentPSPAsFrame(layer);
+			frameA.frameNum = int(ticksA);
 		}
 		
 		for (int i = 0; i < nextNode.frames.size(); i++)
@@ -233,14 +265,51 @@ Class ZSAnimation
 		
 		if (frameA && frameB)
 		{
+			console.printf("layered %d", self.layered);
+			console.printf("evaluating frame %f %f %f", ticksA, ticksB, tickPerc);
+			console.printf("frame A");
+			frameA.PrintFrameInfo();
+			console.printf("frame B");
+			frameB.PrintFrameInfo();
+			console.printf("----");
+			
 			ret.interpolate = frameA.interpolate;
 			ret.sprite = frameA.sprite;
 			ret.flipy = frameA.flipy;
+			
+			if (self.layered)
+			{
+				frameA.pspOffsets = ((frameA.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (frameA.pspOffsets.y-100.0)*-1);
+				console.printf("frame A adjusted for centering");
+				frameA.PrintFrameInfo();
+				let pDiff = (frameB.pspOffsets.x - frameA.pspOffsets.x, 
+					frameB.pspOffsets.y - frameA.pspOffsets.y);
+				let aDiff = (frameB.angles.x - frameA.angles.x,
+					frameB.angles.y - frameA.angles.y,
+					frameB.angles.z - frameB.angles.z);
+				let sDiff = (frameB.pspScale.x - frameA.pspScale.x, frameB.pspScale.y - frameA.pspScale.y);
+				
+				frameA.angles = (0,0,0);
+				frameA.pspOffsets = (0,0);
+				frameA.pspscale = (0,0);
+				frameB.angles = aDiff;
+				frameB.pspOffsets = pDiff;
+				frameB.pspScale = sDiff;
+				
+				tickPerc = 1 - tickPerc;
+				ret.interpolate = frameB.interpolate;
+				
+				/*ret.pspOffsets = pDiff;
+				ret.angles = aDiff;
+				ret.pspScale = sDiff;*/
+				//console.printf("test");
+				//ret.PrintFrameInfo();
+				//return ret;
+			}
+			
 			Vector3 rot = (0,0,0);
 			Vector2 pos = (0,0);
 			Vector2 sc = (0,0);
-			//frameA.PrintFrameInfo();
-			//frameB.PrintFrameInfo();
 			
 			rot.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.x, frameB.angles.x, false);
 			rot.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.y, frameB.angles.y, false);
@@ -258,6 +327,10 @@ Class ZSAnimation
 			ret.angles = rot;
 			ret.pspOffsets = pos;
 			ret.pspScale = sc;
+			
+			console.printf("ret:");
+			ret.PrintFrameInfo();
+			console.printf("*******");
 		}
 		return ret;
 	}
@@ -294,7 +367,7 @@ Class ZSAnimator : Thinker
 	Array<ZSAnimation> currentAnimations;
 	
 	// This function can be used to start an animation directly and let ZSAnimator handle everything.
-	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0, bool manual = false, bool flipAnimX = false, bool flipAnimY = false)
+	void StartAnimation(PlayerInfo ply, Class<ZSAnimation> animationClass, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0, bool manual = false, bool flipAnimX = false, bool flipAnimY = false, bool layered = false)
 	{
 		playbackSpeed *= CVar.FindCVar("zsa_playbackSpeed").GetFloat();
 		let anim = ZSAnimation(New(animationClass));
@@ -318,6 +391,8 @@ Class ZSAnimator : Thinker
 		anim.lastTickDiff = 0;
 		anim.flipAnimX = flipAnimX;
 		anim.flipAnimY = flipAnimY;
+		anim.ply = ply;
+		anim.layered = layered;
 		currentAnimations.Push(anim);
 		
 		/*if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
@@ -385,6 +460,7 @@ Class ZSAnimator : Thinker
 	
 	void LinkPSprite(ZSAnimation anim, ZSAnimationFrame f, PSprite psp)
 	{
+		if (!psp) { return; }
 		if (anim.spritesLinked && anim.playbackSpeed != 1.0)
 		{
 			double currentTicks = anim.currentTicks;
@@ -421,7 +497,7 @@ Class ZSAnimator : Thinker
 							}
 							else if (pspTics == 1)
 							{
-								if (st.nextstate)
+								if (st && st.nextstate)
 								{
 									psp.setstate(st.nextstate);
 									st = psp.curstate;
@@ -466,14 +542,15 @@ Class ZSAnimator : Thinker
 				}
 				
 				//console.printf("psp %d first tic %d", f.pspid, psp.firstTic);
-				if (psp.firstTic)
+				/*if (psp.firstTic)
 				{
 					psp.x = 160.0;
 					psp.y = 100.0;
 					psp.oldx = xOffs;
 					psp.oldy = yOffs;
-				}
-				psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
+				}*/
+				psp.bInterpolate = f.interpolate && !forceDisableInterpolation;
+				console.printf("interpolate %d f.interpolate %d disableinterpolate %d", psp.binterpolate, f.interpolate, forceDisableInterpolation);
 				
 				if (anim.layered)
 				{
@@ -485,6 +562,9 @@ Class ZSAnimator : Thinker
 					psp.x = xOffs + 160.0;
 					psp.y = yOffs + 100.0;
 				}
+				console.printf("layered %d", anim.layered);
+				console.printf("offs %f %f", xOffs, yOffs);
+				console.printf("psp %f %f", psp.x, psp.y);
 				if (!psp.bInterpolate)
 				{
 					psp.oldx = psp.x;
