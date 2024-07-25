@@ -136,6 +136,20 @@ Class ZSAnimation
 		lastNode = last;
 	}
 	
+	void FlipLayer(int pspId, bool flipx = false, bool flipy = false)
+	{
+		for (int i = 0; i < frames.size(); i++)
+		{
+			let f = frames[i];
+			if (f.pspId == pspId)
+			{
+				// console.printf("try flip layer %d", pspId);
+				f.flipx = flipx;
+				f.flipy = flipy;
+			}
+		}
+	}
+	
 	/*bool GotoNextFrame()
 	{
 		if (framerate >= 0.0)
@@ -339,7 +353,7 @@ Class ZSAnimation
 				if (flipRotation)
 				{
 					rot = (rot.x*-1, rot.y*-1, rot.z);
-					ret.flipy = false;
+					// ret.flipy = false;
 				}
 				rot = ((rot.x - pspF.angles.x) + (frameA.flipy ? 0.0 : 0.0),
 					rot.y - pspF.angles.y,
