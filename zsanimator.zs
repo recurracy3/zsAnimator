@@ -317,7 +317,6 @@ Class ZSAnimation
 			// sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.x, frameB.pspScale.x, false);
 			// sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.y, frameB.pspScale.y, false);
 			
-			console.printf("flags %d", frameA.flags);
 			if ((frameA.flags & ZSAnimator.LF_Additive) != 0)
 			{
 				if ((frameA.flags & ZSAnimator.LF_AdditiveNoPSP) == 0)
