@@ -307,46 +307,70 @@ Class ZSAnimation
 			Vector2 pos = (0,0);
 			Vector2 sc = (0,0);
 			
-			rot.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.x, frameB.angles.x, false);
-			rot.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.y, frameB.angles.y, false);
-			rot.z = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.z, frameB.angles.z, false);
+			// rot.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.x, frameB.angles.x, false);
+			// rot.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.y, frameB.angles.y, false);
+			// rot.z = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.z, frameB.angles.z, false);
 			
-			pos.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.x, frameB.pspOffsets.x, false);
-			pos.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.y, frameB.pspOffsets.y, false);
+			// pos.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.x, frameB.pspOffsets.x, false);
+			// pos.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.y, frameB.pspOffsets.y, false);
 			
-			sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.x, frameB.pspScale.x, false);
-			sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.y, frameB.pspScale.y, false);
+			// sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.x, frameB.pspScale.x, false);
+			// sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.y, frameB.pspScale.y, false);
 			
+			console.printf("flags %d", frameA.flags);
 			if ((frameA.flags & ZSAnimator.LF_Additive) != 0)
 			{
-				let pspF = GetCurrentPspAsFrame(layer);
-				pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
-				
-				let rotB = (framea.angles.x - pspF.angles.x,
-					framea.angles.y - pspF.angles.y,
-					framea.angles.z - pspF.angles.z);
-				let posB = (framea.pspOffsets.x - pspF.pspOffsets.x,
-					framea.pspOffsets.y - pspF.pspOffsets.y);
-				let scB = (framea.pspScale.x - pspF.pspScale.x,
-					framea.pspScale.y - pspF.pspScale.y);
-				
-				rot = (frameB.angles.x - frameA.angles.x,
-					frameB.angles.y - frameA.angles.y,
-					frameB.angles.z - frameA.angles.z);
-				pos = (frameB.pspOffsets.x - frameA.pspOffsets.x,
-					frameB.pspOffsets.y - frameA.pspOffsets.y);
-				sc = (frameB.pspScale.x - frameA.pspScale.x,
-					frameB.pspScale.y - frameA.pspScale.y);
-				
-				rot.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, rot.x, rotB.x, false);
-				rot.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, rot.y, rotB.y, false);
-				rot.z = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, rot.z, rotB.z, false);
-				
-				pos.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, pos.x, posB.x, false);
-				pos.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, pos.y, posB.y, false);
-				
-				sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, sc.x, scB.x, false);
-				sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, sc.y, scB.y, false);
+				if ((frameA.flags & ZSAnimator.LF_AdditiveNoPSP) == 0)
+				{
+					let pspF = GetCurrentPspAsFrame(layer);
+					pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
+					
+					let rotB = (framea.angles.x - pspF.angles.x,
+						framea.angles.y - pspF.angles.y,
+						framea.angles.z - pspF.angles.z);
+					let posB = (framea.pspOffsets.x - pspF.pspOffsets.x,
+						framea.pspOffsets.y - pspF.pspOffsets.y);
+					let scB = (framea.pspScale.x - pspF.pspScale.x,
+						framea.pspScale.y - pspF.pspScale.y);
+					
+					rot = (frameB.angles.x - frameA.angles.x,
+						frameB.angles.y - frameA.angles.y,
+						frameB.angles.z - frameA.angles.z);
+					pos = (frameB.pspOffsets.x - frameA.pspOffsets.x,
+						frameB.pspOffsets.y - frameA.pspOffsets.y);
+					sc = (frameB.pspScale.x - frameA.pspScale.x,
+						frameB.pspScale.y - frameA.pspScale.y);
+					
+					rot.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, rot.x, rotB.x, false);
+					rot.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, rot.y, rotB.y, false);
+					rot.z = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, rot.z, rotB.z, false);
+					
+					pos.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, pos.x, posB.x, false);
+					pos.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, pos.y, posB.y, false);
+					
+					sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, sc.x, scB.x, false);
+					sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, sc.y, scB.y, false);
+				}
+				else
+				{
+					rot = (frameB.angles.x - frameA.angles.x,
+						frameB.angles.y - frameA.angles.y,
+						frameB.angles.z - frameA.angles.z);
+					pos = (frameB.pspOffsets.x - frameA.pspOffsets.x,
+						frameB.pspOffsets.y - frameA.pspOffsets.y);
+					sc = (frameB.pspScale.x - frameA.pspScale.x,
+						frameB.pspScale.y - frameA.pspScale.y);
+					
+					rot.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, rot.x, false);
+					rot.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, rot.y, false);
+					rot.z = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, rot.z, false);
+					
+					pos.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, pos.x, false);
+					pos.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, pos.y, false);
+					
+					sc.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, sc.x, false);
+					sc.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, sc.y, false);
+				}
 				
 				// rot.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, rot.x, frameB.angles.x, false);
 				// rot.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, rot.y, frameB.angles.y, false);
@@ -469,6 +493,7 @@ Class ZSAnimator : Thinker
 	enum ZSAFlags
 	{
 		LF_Additive = 1 << 0, // When set, the offsets for this layer get added to the layer's current offset.
+		LF_AdditiveNoPSP = 1 << 1, // When used in conjunction with LF_Additive, ZSAnimator does not apply the current PSPrite offsets but purely uses the delta between frames.
 	}
 	
 	//ZSAnimation currentAnimation;
