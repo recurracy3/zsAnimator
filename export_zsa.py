@@ -59,7 +59,6 @@ class zScriptFrame:
         self.sprite = ""
         self.duration = 0
         self.optionals = {}
-        self.layered = False
         
     #convert this data to a zscript line
     def toZscript(self, optionalProperties):
@@ -71,13 +70,11 @@ class zScriptFrame:
         # {7}-{8}: pspscale x y
         # {9}: interpolation
         # {10}: is Layered
-        curStr = ("frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}, "
-            "layered: {10}))").format(self.layerName, self.frame,
+        curStr = ("frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}").format(self.layerName, self.frame,
             self.rotation.x, self.rotation.y, self.rotation.z,
             self.posOffs.z, self.posOffs.y,
             self.scale.z, self.scale.y,
-            self.interpolation,
-            self.layered)
+            self.interpolation)
         return curStr
             
 def optional_property_to_str(properties, key, default_val):
@@ -235,8 +232,6 @@ class ZScriptExport(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     actionName: bpy.props.StringProperty(name="Action name", default="")
     posScale: bpy.props.FloatProperty(name="Position Scale", description="Position scalar", default=100.0, min=0.01, step=0.01, precision=4)
     spriteScaleMult: bpy.props.FloatProperty(name="Sprites Scale Multiplier", description="Multiply the scale of sprites by this value", default=1.0, min=0.01, step=0.01, precision=4)
-    spritesLinked: bpy.props.BoolProperty(name='Link Sprites', description='If enabled, ZSAnimator will automatically apply the sprites to the layers', default=False)
-    layered: bpy.props.BoolProperty(name='Layered Animation', description='If true, the animation is additive.', default=True)
     
     def execute(self, context):
         exportZS(context, self.properties.filepath, self.properties.animName, self.properties.actionName, self.properties.posScale, self.properties.spriteScaleMult, self.properties.spritesLinked, self.properties.layered)
