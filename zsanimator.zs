@@ -19,6 +19,8 @@ class ZSAnimationFrame
 	bool followWeapon;
 	ZSAnimationFrameNode node;
 	
+	int flags;
+	
 	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool layered = false, bool followWeapon = false)
 	{
 		let frame = ZSAnimationFrame(New("ZSAnimationFrame"));
@@ -146,6 +148,25 @@ Class ZSAnimation
 				// console.printf("try flip layer %d", pspId);
 				f.flipx = flipx;
 				f.flipy = flipy;
+			}
+		}
+	}
+	
+	void SetLayerFlags(int pspId, int flags, bool set = true)
+	{
+		for (int i = 0; i < frames.size(); i++)
+		{
+			let f = frames[i];
+			if (f.pspId == pspId)
+			{
+				if (set)
+				{
+					f.flags |= flags;
+				}
+				else
+				{
+					f.flags &= ~flags;
+				}
 			}
 		}
 	}
@@ -403,6 +424,11 @@ Class ZSAnimator : Thinker
 		PSP_HANDS = 1001,
 	}
 	
+	enum ZSAFlags
+	{
+		ZSALF_Additive = 1 << 0, // When set, the offsets for this layer get added to the layer's current offset.
+	}
+	
 	//ZSAnimation currentAnimation;
 	PlayerInfo ply;
 	bool manual;
@@ -468,6 +494,18 @@ Class ZSAnimator : Thinker
 		currentAnimation.lastTickDiff = 0;
 		currentAnimation.flipAnimX = flipAnimX;
 		currentAnimation.flipAnimY = flipAnimY;*/
+	}
+	
+	void StopAllAnimations()
+	{
+		Array<ZSAnimation> deletedAnims;
+		
+		for (int i = 0; i < currentAnimations.size(); i++)
+		{
+			currentAnimations[i].Destroy();
+		}
+		
+		currentAnimations.Clear();
 	}
 	
 	void AdvanceAnimations()
