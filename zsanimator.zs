@@ -101,7 +101,7 @@ Class ZSAnimation
 	bool spritesLinked;
 	int lastTickDiff;
 	bool flipAnimX, flipAnimY;
-	bool layered;
+	bool layered; // deprecated, does nothing
 	bool destroying;
 	
 	// It's possible for animations to fall 'inbetween' tics defined by Zdoom, aka the default tic rate of 35/s, thanks to the variable framerate.
@@ -246,8 +246,9 @@ Class ZSAnimation
 		//double tickPerc = tickDiff % 1.0;
 		double tickPerc = ticksA%1.0;
 		double margin = 0.01;
-		bool dontEval = tickPerc <= margin || tickPerc >= 1.0-margin;
-		if (self.layered) { dontEval = false; }
+		bool dontEval = false;
+		//bool dontEval = tickPerc <= margin || tickPerc >= 1.0-margin;
+		//if (self.layered) { dontEval = false; }
 		//console.printf("a %f b %f tickperc %f margin %f eval: %d", ticksA, ticksB, tickPerc, margin, dontEval);
 		if (dontEval)
 		{
@@ -296,54 +297,12 @@ Class ZSAnimation
 		{
 			// console.printf("layered %d", self.layered);
 			// console.printf("evaluating psp %d frame %f %f %f layered %d", layer, ticksA, ticksB, tickPerc, self.layered);
-			// console.printf("frame A");
-			// frameA.PrintFrameInfo();
-			// console.printf("frame B");
-			// frameB.PrintFrameInfo();
-			// console.printf("----");
 			
 			ret.interpolate = frameA.interpolate;
 			ret.sprite = frameA.sprite;
 			ret.flipy = frameA.flipy;
+			ret.flags = frameA.flags;
 			
-			/*if (self.layered)
-			{
-				let pspF = GetCurrentPSPAsFrame(layer);
-				pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
-				console.printf("frame A adjusted for centering");
-				pspF.PrintFrameInfo();
-				let pDiff = (frameB.pspOffsets.x - pspF.pspOffsets.x, 
-					frameB.pspOffsets.y - pspF.pspOffsets.y);
-					
-				if (pspF.pspId == ZSAnimator.PlayerView)
-				{
-					frameB.angles = (frameB.angles.x*(self.flipAnimX?1:-1), frameB.angles.y*(self.flipAnimX?1:-1), frameB.angles.z);
-				}
-				let aDiff = (frameB.angles.x - frameA.angles.x,
-					frameB.angles.y - frameA.angles.y,
-					frameB.angles.z - frameA.angles.z);
-				
-				let sDiff = (frameB.pspScale.x - frameA.pspScale.x, frameB.pspScale.y - frameA.pspScale.y);
-				
-				/*frameA.angles = (0,0,0);
-				frameA.pspOffsets = (0,0);
-				frameA.pspscale = (0,0);*/
-				/*frameB.angles = aDiff;
-				frameB.pspOffsets = pDiff;
-				frameB.pspScale = sDiff;
-				
-				tickPerc = ticksB - ticksA;
-				console.printf("tickPerc %f", tickPerc);
-				//tickPerc = tickPerc;
-				ret.interpolate = frameB.interpolate;
-				
-				/*ret.pspOffsets = pDiff;
-				ret.angles = aDiff;
-				ret.pspScale = sDiff;*/
-				//console.printf("test");
-				//ret.PrintFrameInfo();
-				//return ret;
-			//}
 			Vector3 rot = (0,0,0);
 			Vector2 pos = (0,0);
 			Vector2 sc = (0,0);
@@ -358,10 +317,93 @@ Class ZSAnimation
 			sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.x, frameB.pspScale.x, false);
 			sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.y, frameB.pspScale.y, false);
 			
+			if ((frameA.flags & ZSAnimator.LF_Additive) != 0)
+			{
+				let pspF = GetCurrentPspAsFrame(layer);
+				pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
+				
+				let rotB = (framea.angles.x - pspF.angles.x,
+					framea.angles.y - pspF.angles.y,
+					framea.angles.z - pspF.angles.z);
+				let posB = (framea.pspOffsets.x - pspF.pspOffsets.x,
+					framea.pspOffsets.y - pspF.pspOffsets.y);
+				let scB = (framea.pspScale.x - pspF.pspScale.x,
+					framea.pspScale.y - pspF.pspScale.y);
+				
+				rot = (frameB.angles.x - frameA.angles.x,
+					frameB.angles.y - frameA.angles.y,
+					frameB.angles.z - frameA.angles.z);
+				pos = (frameB.pspOffsets.x - frameA.pspOffsets.x,
+					frameB.pspOffsets.y - frameA.pspOffsets.y);
+				sc = (frameB.pspScale.x - frameA.pspScale.x,
+					frameB.pspScale.y - frameA.pspScale.y);
+				
+				rot.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, rot.x, rotB.x, false);
+				rot.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, rot.y, rotB.y, false);
+				rot.z = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, rot.z, rotB.z, false);
+				
+				pos.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, pos.x, posB.x, false);
+				pos.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, pos.y, posB.y, false);
+				
+				sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, sc.x, scB.x, false);
+				sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, sc.y, scB.y, false);
+				
+				// rot.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, rot.x, frameB.angles.x, false);
+				// rot.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, rot.y, frameB.angles.y, false);
+				// rot.z = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, rot.z, frameB.angles.z, false);
+				
+				// pos.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, pos.x, frameB.pspOffsets.x, false);
+				// pos.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, pos.y, frameB.pspOffsets.y, false);
+				
+				// console.printf("pos x y %f %f", pos.x, pos.y);
+				
+				// sc.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, sc.x, frameB.pspScale.x, false);
+				// sc.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, sc.y, frameB.pspScale.y, false);
+				
+				// rot = (rot.x - frameA.angles.x,
+					// rot.y - frameA.angles.y,
+					// rot.z - frameA.angles.z);
+				// pos = (pos.x - frameA.pspOffsets.x,
+					// pos.y - frameA.pspOffsets.y);
+				// sc = (sc.x - frameA.pspScale.x,
+					// sc.y - frameA.pspScale.y);
+					
+				// let pspF = GetCurrentPspAsFrame(layer);
+				// pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
+				// pos = (pos.x - pspF.pspOffsets.x, 
+					// pos.y - pspF.pspOffsets.y);
+					
+				// console.printf("pos %f %f", pos.x, pos.y);
+					
+				// bool flipRotation = (pspf.pspId == ZSAnimator.PlayerView && self.flipAnimX) || frameA.flipy;
+					
+				// if (flipRotation)
+				// {
+					// rot = (rot.x*-1, rot.y*-1, rot.z);
+				// }
+				// rot = ((rot.x - pspF.angles.x) + (frameA.flipy ? 0.0 : 0.0),
+					// rot.y - pspF.angles.y,
+					// rot.z - pspF.angles.z);
+				
+				// sc = (sc.x - pspF.pspScale.x, sc.y - pspF.pspScale.y);
+			}
+			else
+			{
+				rot.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.x, frameB.angles.x, false);
+				rot.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.y, frameB.angles.y, false);
+				rot.z = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.z, frameB.angles.z, false);
+				
+				pos.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.x, frameB.pspOffsets.x, false);
+				pos.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.y, frameB.pspOffsets.y, false);
+				
+				sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.x, frameB.pspScale.x, false);
+				sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.y, frameB.pspScale.y, false);
+			}
+			
 			//console.printf("perc %f", tickPerc);
 			//rot.X = ZSAnimator.LinearMap(
 			
-			if (self.layered)
+			/*if (self.layered)
 			{
 				let pspF = GetCurrentPspAsFrame(layer);
 				pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
@@ -381,7 +423,7 @@ Class ZSAnimation
 					rot.z - pspF.angles.z);
 				
 				sc = (sc.x - pspF.pspScale.x, sc.y - pspF.pspScale.y);
-			}
+			}*/
 			
 			ret.angles = rot;
 			ret.pspOffsets = pos;
@@ -426,7 +468,7 @@ Class ZSAnimator : Thinker
 	
 	enum ZSAFlags
 	{
-		ZSALF_Additive = 1 << 0, // When set, the offsets for this layer get added to the layer's current offset.
+		LF_Additive = 1 << 0, // When set, the offsets for this layer get added to the layer's current offset.
 	}
 	
 	//ZSAnimation currentAnimation;
@@ -638,7 +680,7 @@ Class ZSAnimator : Thinker
 				}*/
 				psp.bInterpolate = f.interpolate && !forceDisableInterpolation;
 				
-				if (anim.layered)
+				if ((f.flags & ZSAnimator.LF_Additive) != 0)
 				{
 					psp.x = psp.x + xOffs;
 					psp.y = psp.y + yOffs;
@@ -665,7 +707,7 @@ Class ZSAnimator : Thinker
 				psp.pivot = (0.5,0.5);
 				//psp.scale = f.pspScale;
 				
-				if (anim.layered)
+				if ((f.flags & ZSAnimator.LF_ADDITIVE) != 0)
 				{
 					let sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
 					/*if (psp.bflip)
@@ -721,7 +763,7 @@ Class ZSAnimator : Thinker
 				ang *= -1.0;
 			}*/
 			
-			if (anim.layered)
+			if ((f.flags & ZSAnimator.LF_Additive) != 0)
 			{
 				roll += ply.mo.viewroll;
 				ang += ply.mo.viewangle;
@@ -740,7 +782,9 @@ Class ZSAnimator : Thinker
 			ply.mo.A_SetViewAngle(ang, SPF_INTERPOLATE);
 			ply.mo.A_SetViewPitch(pit, SPF_INTERPOLATE);
 			if (ply.ReadyWeapon)
+			{
 				ply.ReadyWeapon.FOVScale = fovScale;
+			}
 		}
 	}
 	
