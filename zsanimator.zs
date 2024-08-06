@@ -463,6 +463,11 @@ Class ZSAnimation
 			if (f.pspId == original) f.pspId = replacement;
 		}
 	}
+	
+	override void OnDestroy()
+	{
+		super.OnDestroy();
+	}
 }
 
 Class ZSAnimator : Thinker
@@ -810,6 +815,12 @@ Class ZSAnimator : Thinker
 				ply.ReadyWeapon.FOVScale = fovScale;
 			}
 		}
+	}
+	
+	override void OnDestroy()
+	{
+		StopAllAnimations();
+		super.OnDestroy();
 	}
 	
 	override void Tick()
