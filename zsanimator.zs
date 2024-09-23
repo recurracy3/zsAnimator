@@ -9,6 +9,7 @@ class ZSAnimationFrame
 	
 	int pspId;
 	int frameNum;
+	int firstFrameNum;
 	Vector3 angles;
 	Vector2 pspOffsets;
 	Vector2 pspScale;
@@ -103,6 +104,7 @@ Class ZSAnimation
 	bool flipAnimX, flipAnimY;
 	bool layered; // deprecated, does nothing
 	bool destroying;
+	ZSAnimator currentAnimator;
 	
 	// It's possible for animations to fall 'inbetween' tics defined by Zdoom, aka the default tic rate of 35/s, thanks to the variable framerate.
 	// When this happens we need to determine the positions, rotations and scale between the last frame and the current frame as a percentage.
@@ -464,6 +466,64 @@ Class ZSAnimation
 		}
 	}
 	
+	void GetFrames(Array<int> pspIds, out Array<ZSAnimationFrame> outframes, int startIndex = 0, int endIndex = 0)
+	{
+		for (int i = 0; i < frames.Size(); i++)
+		{
+			let f = frames[i];
+			bool valid = false;
+			if (pspIds.Size() <= 0) { valid = true; } // ignore the psp check if the array is not filled in
+			for (int j = 0; j < pspIds.Size(); j++)
+			{
+				if (f.pspId == pspIDs[j])
+				{
+					valid = true;
+					break;
+				}
+			}
+			if (!valid) { continue; }
+			
+			if ((startIndex > 0 && endIndex > 0) || // always add the appropriate frames if the last two args are not filled in, or
+			(endIndex >= startIndex && (f.frameNum >= startIndex && f.frameNum <= endIndex))) // if endIndex is larger than startIndex and
+			// the frame's number falls between the arguments
+			{
+				outframes.push(f);
+			}
+		}
+	}
+	
+	// {
+		// if (!(caller IS "StateProvider")) { console.printf("caller is not stateprovider (%s)", caller.GetClassName()); return; }
+		// console.printf("making overlay %d", pspId);
+		// ply.mo.A_Overlay(pspId, lb, noOverwrite);
+		/*bool newPsp = false;
+		PSprite psp = ply.FindPSprite(pspId);
+		console.printf("making overlay %d - psp exists: %d nooverwrite %d", pspId, psp != NULL, noOverwrite);
+		if (noOverwrite && psp) { return; }
+		else if (!psp)
+		{
+			console.printf("making psprite");
+			psp = ply.GetPsprite(pspId);
+			psp.Caller = call;
+			newPsp = true;
+		}
+		
+		console.printf("newPsp %d", newPsp);
+		
+		if (newPsp || (!newPsp && !noOverwrite))
+		{
+			console.printf("setting state");
+			let st = ply.mo.ResolveState(lb);
+			psp.SetState(st);
+		}*/
+		
+		/*console.printf("evaluating and applying frame %f %f", currentTicks, currentTicks + playbackSpeed);
+		let f = EvaluateFrame(pspId, currentTicks, currentTicks + playbackSpeed);
+		console.printf("f px %f py %f", f.pspOffsets.x, f.pspOffsets.y);
+		f.interpolate = false;
+		currentAnimator.ApplyFrame(self, f);*/
+	// }
+	
 	override void OnDestroy()
 	{
 		super.OnDestroy();
@@ -540,6 +600,7 @@ Class ZSAnimator : Thinker
 		anim.lastTickDiff = 0;
 		anim.ply = ply;
 		currentAnimations.Push(anim);
+		anim.currentAnimator = self;
 		
 		/*if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
 		{
@@ -707,7 +768,7 @@ Class ZSAnimator : Thinker
 					psp.oldx = xOffs;
 					psp.oldy = yOffs;
 				}*/
-				psp.bInterpolate = f.interpolate && !forceDisableInterpolation;
+				psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
 				
 				if ((f.flags & ZSAnimator.LF_Additive) != 0)
 				{
@@ -852,5 +913,25 @@ Class ZSAnimator : Thinker
 		}
 		
 		AdvanceAnimations();
+	}
+	
+	ZSAnimation GetAnimation(Class<ZSAnimation> animationType)
+	{
+		for (int i = 0; i < currentAnimations.Size(); i++)
+		{
+			let a = currentAnimations[i];
+			if (a IS animationType) { return a; }
+		}
+		return NULL;
+	}
+	
+	play void CreateOverlay(int pspId, Actor caller, StateLabel lb = NULL)
+	{
+		if (!ply) { return; }
+		//ply.mo.A_Overlay(pspId, lb, noOverride);
+		PSprite psp = ply.GetPSprite(pspId);
+		psp.caller = caller;
+		psp.SetState(caller.ResolveState(lb));
+		psp.firstTic = true;
 	}
 }
