@@ -28,16 +28,12 @@ class zScriptAnimation:
         self.frameCount = 0
         self.frames = []
         self.className = 'ZSAnimation' + animationName
-        self.spritesLinked = False
-        self.layered = True
     
     # convert this data to a zscript file
     def toZscript(self):
         result = ''
         result += 'class {0} : ZSAnimation {{\n'.format(self.className)
         result += '\toverride void Initialize() {{\n\t\tframeCount = {0}; \n'.format(self.frameCount)
-        result += '\t\tspritesLinked = {0}; \n'.format(self.spritesLinked)
-        result += '\t\tlayered = {0}; \n'.format(self.layered)
         result += '\t}\n'
         result += '\toverride void MakeFrameList() {\n'
         for frame in self.frames:
@@ -69,8 +65,7 @@ class zScriptFrame:
         # {5}-{6}: pspoffset x y
         # {7}-{8}: pspscale x y
         # {9}: interpolation
-        # {10}: is Layered
-        curStr = ("frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}").format(self.layerName, self.frame,
+        curStr = ("frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}))").format(self.layerName, self.frame,
             self.rotation.x, self.rotation.y, self.rotation.z,
             self.posOffs.z, self.posOffs.y,
             self.scale.z, self.scale.y,
@@ -95,10 +90,27 @@ def get_last_keyframe(fcurve, frame):
     for index, item in e:
         if (item.co.x <= frame+1):
             kf = item
-            
     return kf
+
+def keyframe_exists(fcurves, bonename, framenum):
+    for fci, fc in enumerate(fcurves):
+#        print('bonename {0} datapath {1}'.format(bonename, fc.data_path))
+        if (bonename not in fc.data_path):
+            continue
+#        print('fc name {0} {1}'.format(fc.data_path, bonename))
+        for pi, p in enumerate(fc.keyframe_points):
+            print('point x {0} framenum {1}'.format(p.co.x, framenum))
+            if (p.co.x == framenum):
+#                print('found keyframe at {0}'.format(framenum))
+                return True
+#    e = enumerate(fcurve.keyframe_points)
+#    for index, item in e:
+#        print('item co x {0} {1}'.format(item.co.x, framenum))
+#        if(item.co.x == framenum):
+#            return True
+    return False
         
-def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult, spritesLinked, layered):
+def exportZS(context, filename, animName, actionName, fillinFrames):
     scene = bpy.data.scenes['Scene']
     action = bpy.data.actions[actionName]
     obj = context.object
@@ -106,15 +118,18 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult,
     fcurves = obj.animation_data.action.fcurves
     bones = obj.data.bones
     selectedBones = bpy.context.selected_pose_bones
+    lastZFrame = None
+    totalFrames = 0
     
     zAnim = zScriptAnimation(animName)
-    
-    previousProperties = {}
     
     for framenum in range(scene.frame_start, scene.frame_end+1):
         frameOffs = framenum - (scene.frame_start)
         print('framenum {0} offs {1}'.format(framenum, frameOffs))
         properties = {}
+        kfExists = False
+        aborted = False
+        skipThis = False
         
         for fci, fc in enumerate(fcurves):
             path = fc.data_path
@@ -123,16 +138,27 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult,
             found = False
             for selBone in selectedBones:
                 if (bone.name == selBone.name and not found):
-                    found = True;
+                    found = True
                     
             if (not found):
                 continue
             
+            if (not fillinFrames):
+                found = False
+                
+                print('path', path)
+                found = True
+                
+                if (not found):
+                    continue
+                
 #            if (not bone.select):
 #                continue
-            
-            if (bone.name.startswith('!')):
-                continue
+
+            if (not fillinFrames):
+                if (not keyframe_exists(fcurves, bone.name, framenum)):
+                    print('skipping, no keyframe')
+                    continue
             
             print('checking bone {0}'.format(bone.name))
             
@@ -146,8 +172,6 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult,
                 properties[bone.name]['sprite'] = ""
                 properties[bone.name]['duration'] = 0
                 properties[bone.name]['optionals'] = {}
-                properties[bone.name]['optionals']['followWeapon'] = {}
-                properties[bone.name]['optionals']['followWeapon']['default'] = False
             
             # calculate the curve positions for this frame
             eval = fc.evaluate(framenum)
@@ -158,10 +182,10 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult,
             print('property {0}'.format(propname))
             if (propname == 'rotation_euler'):
                 eval = math.degrees(eval)
-            if (propname == 'location'):
-                eval *= posScale
 #            if (propname == 'scale' and bone.name != 'ZSAnimator.PlayerView'):
 #                eval *= spriteScaleMult
+            if (propname == 'location'):
+                eval *= 100.0;
             
             print('evaluated {0}'.format(eval))
                     
@@ -186,41 +210,28 @@ def exportZS(context, filename, animName, actionName, posScale, spriteScaleMult,
                         
 #                    break
                 
-            print('current properties: {0}'.format(properties))
-            print('previous properties: {0}\n'.format(previousProperties))
+#            print('current properties: {0}'.format(properties))
+
+        if (not aborted):
+            totalFrames += 1
+            print('total frames ', totalFrames)
         
-        if (not (framenum == scene.frame_start and layered)):
-            for key in properties:
-                zFrame = zScriptFrame(frameOffs)
-                zFrame.layerName = key
-                val = properties[key]
-                dolayered = layered and key in previousProperties
-                if (not dolayered):
-                    zFrame.rotation = mathutils.Euler((val['rotation_euler'][0], val['rotation_euler'][1], val['rotation_euler'][2]), 'XYZ')
-                    zFrame.posOffs = mathutils.Vector((val['location'][0], val['location'][1], val['location'][2]))
-                    zFrame.scale = mathutils.Vector((val['scale'][0], val['scale'][1], val['scale'][2]))
-                else:
-                    prev = previousProperties[key]
-                    zFrame.rotation = mathutils.Euler((val['rotation_euler'][0] - prev['rotation_euler'][0],
-                        val['rotation_euler'][1] - prev['rotation_euler'][1],
-                        val['rotation_euler'][2] - prev['rotation_euler'][2]), 'XYZ')
-                    zFrame.posOffs = mathutils.Vector((val['location'][0] - prev['location'][0],
-                        val['location'][1] - prev['location'][1],
-                        val['location'][2] - prev['location'][2]))
-                    zFrame.scale = mathutils.Vector((val['scale'][0] - prev['scale'][0],
-                        val['scale'][1] - prev['scale'][1],
-                        val['scale'][2] - prev['scale'][2]))
-                
-                zFrame.interpolation = True if val['interpolation'] != 'LINEAR' else False
-                zFrame.layered = layered
-                
-                zAnim.frames.append(zFrame)
+        #if (not (framenum == scene.frame_start)):
+        for key in properties:
+            zFrame = zScriptFrame(frameOffs)
+            zFrame.layerName = key
+            val = properties[key]
+            zFrame.rotation = mathutils.Euler((val['rotation_euler'][0], val['rotation_euler'][1], val['rotation_euler'][2]), 'XYZ')
+            zFrame.posOffs = mathutils.Vector((val['location'][0], val['location'][1], val['location'][2]))
+            zFrame.scale = mathutils.Vector((val['scale'][0], val['scale'][1], val['scale'][2]))
             
-        previousProperties = properties.copy()
+            zFrame.interpolation = True if val['interpolation'] != 'CONSTANT' else False
+            
+            zAnim.frames.append(zFrame)
+                
+    totalFrames -= 1
     
-    zAnim.frameCount = scene.frame_end - scene.frame_start
-    zAnim.spritesLinked = spritesLinked
-    zAnim.layered = layered
+    zAnim.frameCount = totalFrames
     write_file(filename, zAnim)
 
 class ZScriptExport(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
@@ -230,11 +241,11 @@ class ZScriptExport(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     # initialize properties in export field
     animName: bpy.props.StringProperty(name="Animation name", default="")
     actionName: bpy.props.StringProperty(name="Action name", default="")
-    posScale: bpy.props.FloatProperty(name="Position Scale", description="Position scalar", default=100.0, min=0.01, step=0.01, precision=4)
-    spriteScaleMult: bpy.props.FloatProperty(name="Sprites Scale Multiplier", description="Multiply the scale of sprites by this value", default=1.0, min=0.01, step=0.01, precision=4)
+    fillinFrames: bpy.props.BoolProperty(name="Fill in frames", description="Fill in key frames. Makes ZScript interpolate by itself", default=True)
     
     def execute(self, context):
-        exportZS(context, self.properties.filepath, self.properties.animName, self.properties.actionName, self.properties.posScale, self.properties.spriteScaleMult, self.properties.spritesLinked, self.properties.layered)
+        print('lol')
+        exportZS(context, self.properties.filepath, self.properties.animName, self.properties.actionName, self.properties.fillinFrames)
         return {'FINISHED'}
 #        unregister()
 
