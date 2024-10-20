@@ -249,9 +249,6 @@ Class ZSAnimation
 		double tickPerc = ticksA%1.0;
 		double margin = 0.01;
 		bool dontEval = false;
-		//bool dontEval = tickPerc <= margin || tickPerc >= 1.0-margin;
-		//if (self.layered) { dontEval = false; }
-		//console.printf("a %f b %f tickperc %f margin %f eval: %d", ticksA, ticksB, tickPerc, margin, dontEval);
 		if (dontEval)
 		{
 			// console.printf("dont eval psp %d tic %d", layer, ticksA);
@@ -297,9 +294,6 @@ Class ZSAnimation
 		
 		if (frameA && frameB)
 		{
-			// console.printf("layered %d", self.layered);
-			// console.printf("evaluating psp %d frame %f %f %f layered %d", layer, ticksA, ticksB, tickPerc, self.layered);
-			
 			ret.interpolate = frameA.interpolate;
 			ret.sprite = frameA.sprite;
 			ret.flipy = frameA.flipy;
@@ -308,16 +302,6 @@ Class ZSAnimation
 			Vector3 rot = (0,0,0);
 			Vector2 pos = (0,0);
 			Vector2 sc = (0,0);
-			
-			// rot.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.x, frameB.angles.x, false);
-			// rot.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.y, frameB.angles.y, false);
-			// rot.z = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.angles.z, frameB.angles.z, false);
-			
-			// pos.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.x, frameB.pspOffsets.x, false);
-			// pos.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.y, frameB.pspOffsets.y, false);
-			
-			// sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.x, frameB.pspScale.x, false);
-			// sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.y, frameB.pspScale.y, false);
 			
 			if ((frameA.flags & ZSAnimator.LF_Additive) != 0)
 			{
@@ -372,45 +356,6 @@ Class ZSAnimation
 					sc.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, sc.x, false);
 					sc.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, sc.y, false);
 				}
-				
-				// rot.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, rot.x, frameB.angles.x, false);
-				// rot.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, rot.y, frameB.angles.y, false);
-				// rot.z = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, rot.z, frameB.angles.z, false);
-				
-				// pos.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, pos.x, frameB.pspOffsets.x, false);
-				// pos.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, pos.y, frameB.pspOffsets.y, false);
-				
-				// console.printf("pos x y %f %f", pos.x, pos.y);
-				
-				// sc.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, sc.x, frameB.pspScale.x, false);
-				// sc.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, sc.y, frameB.pspScale.y, false);
-				
-				// rot = (rot.x - frameA.angles.x,
-					// rot.y - frameA.angles.y,
-					// rot.z - frameA.angles.z);
-				// pos = (pos.x - frameA.pspOffsets.x,
-					// pos.y - frameA.pspOffsets.y);
-				// sc = (sc.x - frameA.pspScale.x,
-					// sc.y - frameA.pspScale.y);
-					
-				// let pspF = GetCurrentPspAsFrame(layer);
-				// pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
-				// pos = (pos.x - pspF.pspOffsets.x, 
-					// pos.y - pspF.pspOffsets.y);
-					
-				// console.printf("pos %f %f", pos.x, pos.y);
-					
-				// bool flipRotation = (pspf.pspId == ZSAnimator.PlayerView && self.flipAnimX) || frameA.flipy;
-					
-				// if (flipRotation)
-				// {
-					// rot = (rot.x*-1, rot.y*-1, rot.z);
-				// }
-				// rot = ((rot.x - pspF.angles.x) + (frameA.flipy ? 0.0 : 0.0),
-					// rot.y - pspF.angles.y,
-					// rot.z - pspF.angles.z);
-				
-				// sc = (sc.x - pspF.pspScale.x, sc.y - pspF.pspScale.y);
 			}
 			else
 			{
@@ -424,31 +369,6 @@ Class ZSAnimation
 				sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.x, frameB.pspScale.x, false);
 				sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.y, frameB.pspScale.y, false);
 			}
-			
-			//console.printf("perc %f", tickPerc);
-			//rot.X = ZSAnimator.LinearMap(
-			
-			/*if (self.layered)
-			{
-				let pspF = GetCurrentPspAsFrame(layer);
-				pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
-				pos = (pos.x - pspF.pspOffsets.x, 
-					pos.y - pspF.pspOffsets.y);
-					
-				bool flipRotation = (pspf.pspId == ZSAnimator.PlayerView && self.flipAnimX) || frameA.flipy;
-				// console.printf("flip rot %d isview %d flipanimx %d flipy %d", flipRotation, pspf.pspId == zsAnimator.PlayerView, self.flipAnimX, frameA.flipy);
-					
-				if (flipRotation)
-				{
-					rot = (rot.x*-1, rot.y*-1, rot.z);
-					// ret.flipy = false;
-				}
-				rot = ((rot.x - pspF.angles.x) + (frameA.flipy ? 0.0 : 0.0),
-					rot.y - pspF.angles.y,
-					rot.z - pspF.angles.z);
-				
-				sc = (sc.x - pspF.pspScale.x, sc.y - pspF.pspScale.y);
-			}*/
 			
 			ret.angles = rot;
 			ret.pspOffsets = pos;
@@ -466,7 +386,7 @@ Class ZSAnimation
 		}
 	}
 	
-	void GetFrames(Array<int> pspIds, out Array<ZSAnimationFrame> outframes, int startIndex = 0, int endIndex = 0)
+	void GetFrames(Array<int> pspIds, out Array<ZSAnimationFrame> outframes, int startIndex = -1, int endIndex = -1)
 	{
 		for (int i = 0; i < frames.Size(); i++)
 		{
@@ -483,7 +403,9 @@ Class ZSAnimation
 			}
 			if (!valid) { continue; }
 			
-			if ((startIndex > 0 && endIndex > 0) || // always add the appropriate frames if the last two args are not filled in, or
+			console.printf("startIndex %d endIndex %d frameNum %d", startIndex, endIndex, f.frameNum);
+			
+			if ((startIndex == -1 && endIndex == -1) || // always add the appropriate frames if the last two args are not filled in, or
 			(endIndex >= startIndex && (f.frameNum >= startIndex && f.frameNum <= endIndex))) // if endIndex is larger than startIndex and
 			// the frame's number falls between the arguments
 			{
@@ -491,38 +413,6 @@ Class ZSAnimation
 			}
 		}
 	}
-	
-	// {
-		// if (!(caller IS "StateProvider")) { console.printf("caller is not stateprovider (%s)", caller.GetClassName()); return; }
-		// console.printf("making overlay %d", pspId);
-		// ply.mo.A_Overlay(pspId, lb, noOverwrite);
-		/*bool newPsp = false;
-		PSprite psp = ply.FindPSprite(pspId);
-		console.printf("making overlay %d - psp exists: %d nooverwrite %d", pspId, psp != NULL, noOverwrite);
-		if (noOverwrite && psp) { return; }
-		else if (!psp)
-		{
-			console.printf("making psprite");
-			psp = ply.GetPsprite(pspId);
-			psp.Caller = call;
-			newPsp = true;
-		}
-		
-		console.printf("newPsp %d", newPsp);
-		
-		if (newPsp || (!newPsp && !noOverwrite))
-		{
-			console.printf("setting state");
-			let st = ply.mo.ResolveState(lb);
-			psp.SetState(st);
-		}*/
-		
-		/*console.printf("evaluating and applying frame %f %f", currentTicks, currentTicks + playbackSpeed);
-		let f = EvaluateFrame(pspId, currentTicks, currentTicks + playbackSpeed);
-		console.printf("f px %f py %f", f.pspOffsets.x, f.pspOffsets.y);
-		f.interpolate = false;
-		currentAnimator.ApplyFrame(self, f);*/
-	// }
 	
 	override void OnDestroy()
 	{
@@ -749,10 +639,6 @@ Class ZSAnimator : Thinker
 				psp.bPivotPercent = true;
 				let xOffs = f.pspOffsets.x*(anim.flipAnimX ? 1 : -1);
 				let yOffs = f.pspOffsets.y*(anim.flipAnimY ? -1 : -1);//-WEAPONTOP;
-				// if (f.pspId == PSP_WEAPON)
-				// {
-					// yOffs += WEAPONTOP;
-				// }
 				psp.bAddWeapon = f.followWeapon;
 				if (!psp.bAddWeapon)
 				{
@@ -760,14 +646,6 @@ Class ZSAnimator : Thinker
 					//yOffs /= 1.2;
 				}
 				
-				//console.printf("psp %d first tic %d", f.pspid, psp.firstTic);
-				/*if (psp.firstTic)
-				{
-					psp.x = 160.0;
-					psp.y = 100.0;
-					psp.oldx = xOffs;
-					psp.oldy = yOffs;
-				}*/
 				psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
 				
 				if ((f.flags & ZSAnimator.LF_Additive) != 0)
@@ -795,47 +673,23 @@ Class ZSAnimator : Thinker
 					psp.bflip = false;
 				}
 				psp.pivot = (0.5,0.5);
-				//psp.scale = f.pspScale;
 				
 				if ((f.flags & ZSAnimator.LF_ADDITIVE) != 0)
 				{
 					let sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
-					/*if (psp.bflip)
-					{
-						//sc = (abs(sc.x), abs(sc.y));
-					}*/
-					
-					// psp.scale = sc;
 					psp.scale = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
 					psp.rotation += f.angles.x;
 				
-					// console.printf("psp %d layered %d rot %.3f, %.3f flip %d %d, f.pspscale %f sc %f pspscale %f", f.pspId, anim.layered, f.angles.x, psp.rotation, f.flipy, psp.bflip, f.pspscale.x, sc.x, psp.scale.x);
 				}
 				else
 				{
-					// console.printf("psp %d scale %f %f", f.pspid, psp.scale.x, psp.scale.y);
 					if (psp.bflip)
 					{
-						// console.printf("bflip is true %f %f", f.pspscale.x, f.pspscale.y);
 						f.pspScale = (abs(f.pspScale.x), abs(f.pspScale.y));
-						// console.printf("bflip is true %f %f", f.pspscale.x, f.pspscale.y);
 					}
 					psp.scale = f.pspScale;
-					// console.printf("psp %d scale %f %f", f.pspid, psp.scale.x, psp.scale.y);
-					//psp.rotation = f.angles.x;// + (f.flipy ? 180.0 : 0.0);
 					psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
-					// console.printf("psp %d layered %d rot %.3f, %.3f flip %d %d, f.pspscale %f pspscale %f", f.pspId, anim.layered, f.angles.x, psp.rotation, f.flipy, psp.bflip, f.pspscale.x, psp.scale.x);
-					// console.printf("interp %d", psp.binterpolate);
 				}
-				
-				//console.printf("psp %d frame %d xp yp %.3f %.3f", f.pspId, f.frameNum, psp.x, psp.y);
-				//console.printf("psp %d frame %d r %.3f", f.pspId, f.frameNum, psp.rotation);
-				//f.PrintFrameInfo();
-				
-				//psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
-				// console.printf("layer %d rotation %f %f", f.pspId, f.angles.x, psp.rotation);
-				
-				//currentAnimation.spritesLinked = false;
 				LinkPSprite(anim, f, psp);
 			}
 		}
