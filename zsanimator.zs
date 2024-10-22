@@ -50,13 +50,12 @@ class ZSAnimationFrame
 	
 	void PrintFrameInfo()
 	{
-		console.printf("psp %d frame %d a: (%.3f %.3f %.3f) p: (%.3f %.3f) s: (%.3f %.3f) i: %d s: %s", 
+		console.printf("psp %d frame %d a: (%.3f %.3f %.3f) p: (%.3f %.3f) s: (%.3f %.3f) i: %d", 
 			pspId, frameNum, 
 			angles.x, angles.y, angles.z, 
 			pspOffsets.x, pspOffsets.y, 
 			pspScale.x, pspScale.y, 
-			interpolate,
-			sprite);
+			interpolate);
 	}
 }
 
@@ -164,7 +163,6 @@ Class ZSAnimation
 			let f = frames[i];
 			if (f.pspId == pspId)
 			{
-				// console.printf("try flip layer %d", pspId);
 				f.flipx = flipx;
 				f.flipy = flipy;
 			}
@@ -230,7 +228,7 @@ Class ZSAnimation
 				
 				if (test.frame.frameNum > ticksNext)
 				{
-					break;
+					return n;
 				}
 			}
 			
@@ -238,12 +236,18 @@ Class ZSAnimation
 			{
 				if (!test)
 				{
-					return NULL;
+					return n;
 				}
-				if (ticksNext >= n.frame.frameNum && ticksNext <= test.frame.frameNum)
+				
+				if (test.frame.frameNum >= int(ticksNext))
 				{
 					return test;
 				}
+				
+				// if (ticksNext >= n.frame.frameNum && ticksNext <= test.frame.frameNum)
+				// {
+					// return test;
+				// }
 			}
 			
 			n = test;
@@ -280,7 +284,6 @@ Class ZSAnimation
 		
 		foreach ( k, v : curIt )
 		{
-			// console.printf("advance psp %d", k);
 			let n = GetNextNode(v, currentTicks, currentTicks + playbackSpeed);
 			temp.Insert(k, n);
 		}
@@ -342,11 +345,19 @@ Class ZSAnimation
 		{
 			return frameA;
 		}
-		double tickPerc = 1.0;
+		double tickPerc = 0.0;
+		
 		if ((frameA.frameNum > 0 && frameB.frameNum > 0) && frameA.frameNum != frameB.frameNum)
 		{
-			tickPerc = ZSAnimator.LinearMap(ticksA, double(frameA.frameNum), double(frameB.frameNum), 0.0, 1.0, true);
+			tickPerc = ZSAnimator.LinearMap(ticksA, int(frameA.frameNum), int(frameB.frameNum), 0.0, 1.0, true);
 		}
+		else
+		{
+			
+			//tickPerc = ticksA%1.0;
+		}
+		
+		// console.printf("psp %d tickPerc %f ticksA %f ticksB %f frameA %d frameB %d", layer, tickPerc, ticksA, ticksB, frameA.frameNum, frameB.frameNum);
 		
 		ret.interpolate = frameA.interpolate;
 		ret.sprite = frameA.sprite;
@@ -556,7 +567,6 @@ Class ZSAnimator : Thinker
 		{
 			self.ply = ply;
 			currentAnimation = ZSAnimation(New(animationClass));
-			//console.printf("start anim %s", currentAnimation.GetClassName());
 			currentAnimation.Initialize();
 			currentAnimation.MakeFrameList();
 			currentAnimation.LinkList();
@@ -651,7 +661,6 @@ Class ZSAnimator : Thinker
 						let a = int(nextTicks);
 						let b = int(currentTicks);
 						int ticsToSub = (a - b) - 1;
-						console.printf("tics to sub %d a %f b %f", ticsToSub, a, b);
 						while (ticsToSub > 0)
 						{
 							int pspTics = psp.tics;
@@ -693,7 +702,6 @@ Class ZSAnimator : Thinker
 				{
 					psp.tics += 1;
 				}
-				console.printf("diff %d a %d b %d", ticsToAdd, a, b);
 			}
 		}
 	}
