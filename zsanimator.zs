@@ -214,9 +214,14 @@ Class ZSAnimation
 			if (playbackSpeed >= 0.0) { test = test.next; } else { test = test.prev; }
 			
 			let tfN = -1;
+			// console.printf("ticks %.2f %.2f", ticksNow, ticksNext);
+			// console.printf("n: ");
+			// n.frame.printframeinfo();
 			if (test)
 			{
 				tfN = test.frame.frameNum;
+				// console.printf("test: ");
+				// test.frame.printframeinfo();
 			}
 			
 			if (!forceNext)
@@ -226,8 +231,15 @@ Class ZSAnimation
 					return n;
 				}
 				
-				if (test.frame.frameNum > ticksNext)
+				bool result = test.frame.frameNum > int(ticksNext);
+				if (playbackSpeed < 0)
 				{
+					result = test.frame.frameNum < self.frameCount - int(ticksNext);
+				}
+				
+				if (result)
+				{
+					// console.printf("return n");
 					return n;
 				}
 			}
@@ -236,11 +248,19 @@ Class ZSAnimation
 			{
 				if (!test)
 				{
+					// console.printf("return n");
 					return n;
 				}
 				
-				if (test.frame.frameNum >= int(ticksNext))
+				bool result = test.frame.frameNum >= int(ticksNext);
+				if (playbackSpeed < 0)
 				{
+					result = test.frame.frameNum < self.frameCount - int(ticksNext);
+				}
+				
+				if (result)
+				{
+					// console.printf("return test");
 					return test;
 				}
 				
@@ -275,7 +295,7 @@ Class ZSAnimation
 		// return n;
 	}
 	
-	void AdvanceAnimation(double ticRate = 1.0)
+	void AdvanceAnimation()
 	{
 		Map<int, ZSAnimationFrameNode> temp;
 		
@@ -284,7 +304,7 @@ Class ZSAnimation
 		
 		foreach ( k, v : curIt )
 		{
-			let n = GetNextNode(v, currentTicks, currentTicks + playbackSpeed);
+			let n = GetNextNode(v, currentTicks, currentTicks + abs(playbackSpeed));
 			temp.Insert(k, n);
 		}
 		
@@ -294,7 +314,7 @@ Class ZSAnimation
 		}
 		curIt.ReInit();
 		
-		currentTicks += abs(playbackSpeed*ticRate);
+		currentTicks += abs(playbackSpeed);
 		
 		// let n = EvaluateNextNode(currentTicks, currentTicks + playbackSpeed);
 		// if (n != currentNode)
@@ -337,6 +357,7 @@ Class ZSAnimation
 		
 		ZSAnimationFrame frameA = currNode.frame;
 		ZSAnimationFrame frameB = currNode.frame;
+		ret.pspId = frameA.pspId;
 		if (nextNode)
 		{
 			frameB = nextNode.frame;
@@ -349,7 +370,17 @@ Class ZSAnimation
 		
 		if ((frameA.frameNum > 0 && frameB.frameNum > 0) && frameA.frameNum != frameB.frameNum)
 		{
-			tickPerc = ZSAnimator.LinearMap(ticksA, int(frameA.frameNum), int(frameB.frameNum), 0.0, 1.0, true);
+			double tickIn = ticksA;
+			int nA = frameA.frameNum;
+			int nB = frameB.frameNum;
+			
+			if (playbackSpeed < 0)
+			{
+				// nA = frameB.frameNum;
+				// nB = frameA.frameNum;
+				tickIn = int(self.frameCount) - ticksA;
+			}
+			tickPerc = ZSAnimator.LinearMap(tickIn, nA, nB, 0.0, 1.0, true);
 		}
 		else
 		{
@@ -455,7 +486,9 @@ Class ZSAnimation
 		for (int i = 0; i < frames.Size(); i++)
 		{
 			let f = frames[i];
-			if (f.pspId == original) f.pspId = replacement;
+			if (f.pspId == original) {
+				f.pspId = replacement;
+			}
 		}
 	}
 	
@@ -555,6 +588,24 @@ Class ZSAnimator : Thinker
 			// anim.currentNode = anim.lastNode;
 		// }
 		
+		if (playbackSpeed < 0)
+		{
+			Map<int, ZSAnimationFrameNode> temp;
+			MapIterator<int, ZSAnimationFrameNode> cnIt;
+			cnIt.Init(anim.currentNodes);
+			foreach(k, v : anim.currentNodes)
+			{
+				let n = v.GetLastNode(true);
+				temp.Insert(k, n);
+			}
+			
+			foreach(k, v : temp)
+			{
+				anim.currentNodes.insert(k, v);
+			}
+			cnIt.ReInit();
+		}
+		
 		anim.currentTicks = frame;
 		anim.running = true;
 		anim.playbackSpeed = playbackSpeed;
@@ -644,11 +695,11 @@ Class ZSAnimator : Thinker
 		if (anim.spritesLinked && anim.playbackSpeed != 1.0)
 		{
 			double currentTicks = anim.currentTicks;
-			double nextTicks = currentTicks + anim.playbackSpeed;
+			double nextTicks = currentTicks + abs(anim.playbackSpeed);
 			let currentNode = anim.currentNodes.GetIfExists(psp.id);
 			let nextN = anim.GetNextNode(currentNode, currentTicks, nextTicks);
 			bool equals = currentNode == nextN;
-			if (anim.playbackSpeed > 1.0)
+			if (abs(anim.playbackSpeed) > 1.0)
 			{
 				let st = psp.curState;	
 				// this psp does not loop, or its next state does not exist, so we need to adjust the frames, possibly even skipping to the next frame if necessary
@@ -693,7 +744,7 @@ Class ZSAnimator : Thinker
 					}
 				}
 			}
-			else if (anim.playbackSpeed < 1.0)
+			else if (abs(anim.playbackSpeed) < 1.0)
 			{
 				int a = int(nextTicks);
 				int b = int(currentTicks);
@@ -828,7 +879,7 @@ Class ZSAnimator : Thinker
 			{
 				foreach (k, v : currentAnimation.nodeMap)
 				{
-					let f = currentAnimation.EvaluateFrame(k, currentAnimation.currentTicks, currentAnimation.currentTicks + currentAnimation.playbackSpeed);
+					let f = currentAnimation.EvaluateFrame(k, currentAnimation.currentTicks, currentAnimation.currentTicks + abs(currentAnimation.playbackSpeed));
 					if (f)
 					{
 						ApplyFrame(currentAnimation, f);
