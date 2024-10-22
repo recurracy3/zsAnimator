@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Export ZScript (.zs)",
     "author": "Recurracy",
-    "version": (2024, 4, 27),
+    "version": (2024, 10, 21),
     "blender": (4, 0, 0),
     "location": "File > Export > ZScript",
     "description": "Export as a ZScript file (.zs)",
@@ -28,12 +28,13 @@ class zScriptAnimation:
         self.frameCount = 0
         self.frames = []
         self.className = 'ZSAnimation' + animationName
+        self.filledIn = False
     
     # convert this data to a zscript file
     def toZscript(self):
         result = ''
         result += 'class {0} : ZSAnimation {{\n'.format(self.className)
-        result += '\toverride void Initialize() {{\n\t\tframeCount = {0}; \n'.format(self.frameCount)
+        result += '\toverride void Initialize() {{\n\t\tframeCount = {0}; \n\t\tfilledIn = {1};'.format(self.frameCount, self.filledIn)
         result += '\t}\n'
         result += '\toverride void MakeFrameList() {\n'
         for frame in self.frames:
@@ -232,6 +233,7 @@ def exportZS(context, filename, animName, actionName, fillinFrames):
     totalFrames -= 1
     
     zAnim.frameCount = totalFrames
+    zAnim.filledIn = fillinFrames
     write_file(filename, zAnim)
 
 class ZScriptExport(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):

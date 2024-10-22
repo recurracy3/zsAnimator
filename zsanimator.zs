@@ -18,7 +18,7 @@ class ZSAnimationFrame
 	bool flipy;
 	string sprite;
 	bool followWeapon;
-	ZSAnimationFrameNode node;
+	// ZSAnimationFrameNode node;
 	
 	int flags;
 	
@@ -64,7 +64,7 @@ class ZSAnimationFrameNode
 {
 	ZSAnimationFrameNode next;
 	ZSAnimationFrameNode prev;
-	Array<ZSAnimationFrame> frames;
+	ZSAnimationFrame frame;
 	
 	static ZSAnimationFrameNode Create()
 	{
@@ -72,17 +72,26 @@ class ZSAnimationFrameNode
 		return node;
 	}
 	
-	ZSAnimationFrame GetFrameByLayer(int pspId)
+	ZSAnimationFrameNode GetLastNode(bool includeSelf = false)
 	{
-		for (int i = 0; i < frames.Size(); i++)
+		let n = self;
+		while (n.next)
 		{
-			let f = frames[i];
-			if (f.pspId == pspId)
-			{
-				return f;
-			}
+			n = n.next;
 		}
-		return NULL;
+		if (!includeSelf && n == self) { return NULL; }
+		return n;
+	}
+	
+	ZSAnimationFrameNode GetFirstNode(bool includeSelf = false)
+	{
+		let n = self;
+		while (n.prev)
+		{
+			n = n.prev;
+		}
+		if (!includeSelf && n == self) { return NULL; }
+		return n;
 	}
 }
 
@@ -96,14 +105,19 @@ Class ZSAnimation
 	//ZSAnimationFrame previousFrame;
 	//Weapon currentWeapon;
 	Array<ZSAnimationFrame> frames;
-	ZSAnimationFrameNode currentNode;
-	ZSAnimationFrameNode firstNode;
-	ZSAnimationFrameNode lastNode;
+	// Associative map of nodes, where the key is the PSP Id.
+	Map<int, ZSAnimationFrameNode > nodeMap;
+	Map<int, ZSAnimationFrameNode > currentNodes;
+	// ZSAnimationFrameNode currentNode;
+	// ZSAnimationFrameNode firstNode;
+	// ZSAnimationFrameNode lastNode;
 	bool spritesLinked;
 	int lastTickDiff;
 	bool flipAnimX, flipAnimY;
 	bool layered; // deprecated, does nothing
 	bool destroying;
+	// DO NOT change this. It's done by ZSAnimator itself.
+	bool filledIn;
 	ZSAnimator currentAnimator;
 	
 	// It's possible for animations to fall 'inbetween' tics defined by Zdoom, aka the default tic rate of 35/s, thanks to the variable framerate.
@@ -114,30 +128,33 @@ Class ZSAnimation
 	virtual void Initialize() { }
 	void LinkList()
 	{
-		//console.printf("linking list, %d frames", frameCount);
-		currentNode = ZSAnimationFrameNode.Create();
-		ZSAnimationFrameNode last = currentNode;
-		firstNode = currentNode;
-		for (int f = 0; f <= frameCount; f++)
+		foreach(frame : frames)
 		{
 			ZSAnimationFrameNode n = ZSAnimationFrameNode.Create();
-			for (int i = 0; i < frames.Size(); i++)
+			if (!nodeMap.CheckKey(frame.pspId))
 			{
-				ZSAnimationFrame frame = frames[i];
-				if (frame.frameNum == f)
-				{
-					last.frames.push(frame);
-					frame.node = n;
-					//console.printf("pushed frame %d cur. size %d", f, n.frames.size());
-				}
+				nodeMap.Insert(frame.pspId, n);
+			}
+			n.frame = frame;
+			if (currentNodes.CheckKey(frame.pspId))
+			{
+				let prevNode = currentNodes.GetIfExists(frame.pspId);
+				n.prev = prevNode;
+				prevNode.next = n;
 			}
 			
-			last.next = n;
-			n.prev = last;
-			last = n;
+			currentNodes.Insert(frame.pspId, n);
 		}
 		
-		lastNode = last;
+		foreach(k,v : nodemap)
+		{
+			currentNodes.Insert(k, v);
+			let n = v.next;
+			while (n)
+			{
+				n = n.next;
+			}
+		}
 	}
 	
 	void FlipLayer(int pspId, bool flipx = false, bool flipy = false)
@@ -183,39 +200,106 @@ Class ZSAnimation
 		return currentNode != NULL;
 	}*/
 	
-	ZSAnimationFrameNode EvaluateNextNode(double ticksNow, double ticksNext, bool forceNext = false)
+	ZSAnimationFrameNode GetNextNode(ZSAnimationFrameNode node, double ticksNow, double ticksNext, bool forceNext = false)
 	{
-		let n = currentNode;
-		int diff = abs(int(ticksNext) - int(ticksNow));
-		if (forceNext) diff = 1;
-		//console.printf("now %f next %f diff %f", ticksNow, ticksNext, diff);
+		// forceNext = false;
+		int tickDiff = abs(int(ticksNext) - int(ticksNow));
+		ZSAnimationFrameNode ret = NULL;
 		
-		for (int i = 0; i < diff; i++)
+		let n = node;
+		int iterations = 0;
+		int maxTicks;
+		while (true)
 		{
-			if (playbackSpeed >= 0.0)
+			iterations++;
+			let test = n;
+			if (playbackSpeed >= 0.0) { test = test.next; } else { test = test.prev; }
+			
+			let tfN = -1;
+			if (test)
 			{
-				if (n.next)
-					n = n.next;
+				tfN = test.frame.frameNum;
 			}
-			else
+			
+			if (!forceNext)
 			{
-				if (n.prev)
-					n = n.prev;
+				if (!test)
+				{
+					return n;
+				}
+				
+				if (test.frame.frameNum > ticksNext)
+				{
+					break;
+				}
 			}
+			
+			if (forceNext)
+			{
+				if (!test)
+				{
+					return NULL;
+				}
+				if (ticksNext >= n.frame.frameNum && ticksNext <= test.frame.frameNum)
+				{
+					return test;
+				}
+			}
+			
+			n = test;
 		}
-		
 		return n;
+		
+		// let n = currentNode;
+		// int diff = abs(int(ticksNext) - int(ticksNow));
+		// if (forceNext) diff = 1;
+		
+		// for (int i = 0; i < diff; i++)
+		// {
+			// if (playbackSpeed >= 0.0)
+			// {
+				// if (n.next)
+					// n = n.next;
+			// }
+			// else
+			// {
+				// if (n.prev)
+					// n = n.prev;
+			// }
+		// }
+		
+		// return n;
 	}
 	
-	bool AdvanceAnimation(double ticRate = 1.0)
+	void AdvanceAnimation(double ticRate = 1.0)
 	{
-		let n = EvaluateNextNode(currentTicks, currentTicks + playbackSpeed);
-		if (n != currentNode)
+		Map<int, ZSAnimationFrameNode> temp;
+		
+		MapIterator<int, ZSanimationFrameNode> curIt;
+		curIt.Init(currentNodes);
+		
+		foreach ( k, v : curIt )
 		{
-			currentNode = n;
+			// console.printf("advance psp %d", k);
+			let n = GetNextNode(v, currentTicks, currentTicks + playbackSpeed);
+			temp.Insert(k, n);
 		}
+		
+		foreach ( k, v : temp )
+		{
+			currentNodes.insert(k, v);
+		}
+		curIt.ReInit();
+		
 		currentTicks += abs(playbackSpeed*ticRate);
-		return currentNode != NULL;
+		
+		// let n = EvaluateNextNode(currentTicks, currentTicks + playbackSpeed);
+		// if (n != currentNode)
+		// {
+			// currentNode = n;
+		// }
+		// currentTicks += abs(playbackSpeed*ticRate);
+		// return currentNode != NULL;
 	}
 	
 	ZSAnimationFrame GetCurrentPspAsFrame(int layerId)
@@ -243,66 +327,38 @@ Class ZSAnimation
 	
 	ZSAnimationFrame EvaluateFrame(int layer, double ticksA, double ticksB)
 	{
-		let currNode = currentNode;
-		let nextNode = EvaluateNextNode(ticksA, ticksB, true);
-		//double tickPerc = tickDiff % 1.0;
-		double tickPerc = ticksA%1.0;
-		double margin = 0.01;
-		bool dontEval = false;
-		if (dontEval)
-		{
-			// console.printf("dont eval psp %d tic %d", layer, ticksA);
-			let n = currNode;
-			if (tickPerc >= 1-margin)
-				n = nextNode;
-				
-			for (int i = 0; i < n.frames.Size(); i++)
-			{
-				let f = n.frames[i];
-				if (f.pspId == layer)
-				{
-					// f.PrintFrameInfo();
-					return f;
-				}
-			}
-			return NULL;
-		}
+		let currNode = currentNodes.GetIfExists(layer);
+		let nextNode = GetNextNode(currNode, ticksA, ticksB, true);
 		
 		let ret = ZSAnimationFrame.Create(layer, int(ticksA), (0,0,0), (0,0), (0,0), false);
 		
-		ZSAnimationFrame frameA = NULL;
-		ZSAnimationFrame frameB = NULL;
-		for (int i = 0; i < currNode.frames.size(); i++)
+		ZSAnimationFrame frameA = currNode.frame;
+		ZSAnimationFrame frameB = currNode.frame;
+		if (nextNode)
 		{
-			let f = currNode.frames[i];
-			if (f.pspId == layer)
-			{
-				frameA = f;
-				break;
-			}
+			frameB = nextNode.frame;
+		}
+		else
+		{
+			return frameA;
+		}
+		double tickPerc = 1.0;
+		if ((frameA.frameNum > 0 && frameB.frameNum > 0) && frameA.frameNum != frameB.frameNum)
+		{
+			tickPerc = ZSAnimator.LinearMap(ticksA, double(frameA.frameNum), double(frameB.frameNum), 0.0, 1.0, true);
 		}
 		
-		for (int i = 0; i < nextNode.frames.size(); i++)
-		{
-			let f = nextNode.frames[i];
-			if (f.pspId == layer)
-			{
-				frameB = f;
-				break;
-			}
-		}
+		ret.interpolate = frameA.interpolate;
+		ret.sprite = frameA.sprite;
+		ret.flipy = frameA.flipy;
+		ret.flags = frameA.flags;
 		
-		if (frameA && frameB)
-		{
-			ret.interpolate = frameA.interpolate;
-			ret.sprite = frameA.sprite;
-			ret.flipy = frameA.flipy;
-			ret.flags = frameA.flags;
-			
-			Vector3 rot = (0,0,0);
-			Vector2 pos = (0,0);
-			Vector2 sc = (0,0);
-			
+		Vector3 rot = (0,0,0);
+		Vector2 pos = (0,0);
+		Vector2 sc = (0,0);
+		
+		if ((frameA && frameB) && frameA != frameB)
+		{	
 			if ((frameA.flags & ZSAnimator.LF_Additive) != 0)
 			{
 				if ((frameA.flags & ZSAnimator.LF_AdditiveNoPSP) == 0)
@@ -369,11 +425,17 @@ Class ZSAnimation
 				sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.x, frameB.pspScale.x, false);
 				sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.y, frameB.pspScale.y, false);
 			}
-			
-			ret.angles = rot;
-			ret.pspOffsets = pos;
-			ret.pspScale = sc;
 		}
+		else if (frameA == frameB)
+		{
+			rot = (frameA.angles.x, frameA.angles.y, frameA.angles.z);
+			pos = (frameA.pspOffsets.x, frameA.pspOffsets.y);
+			sc = (frameA.pspScale.x, frameA.pspScale.y);
+		}
+		
+		ret.angles = rot;
+		ret.pspOffsets = pos;
+		ret.pspScale = sc;
 		return ret;
 	}
 	
@@ -402,8 +464,6 @@ Class ZSAnimation
 				}
 			}
 			if (!valid) { continue; }
-			
-			console.printf("startIndex %d endIndex %d frameNum %d", startIndex, endIndex, f.frameNum);
 			
 			if ((startIndex == -1 && endIndex == -1) || // always add the appropriate frames if the last two args are not filled in, or
 			(endIndex >= startIndex && (f.frameNum >= startIndex && f.frameNum <= endIndex))) // if endIndex is larger than startIndex and
@@ -475,14 +535,14 @@ Class ZSAnimator : Thinker
 		anim.LinkList();*/
 		self.ply = ply;
 		
-		if (playbackSpeed >= 0)
-		{
-			anim.currentNode = anim.firstNode;
-		}
-		else
-		{
-			anim.currentNode = anim.lastNode;
-		}
+		// if (playbackSpeed >= 0)
+		// {
+			// anim.currentNode = anim.firstNode;
+		// }
+		// else
+		// {
+			// anim.currentNode = anim.lastNode;
+		// }
 		
 		anim.currentTicks = frame;
 		anim.running = true;
@@ -536,10 +596,11 @@ Class ZSAnimator : Thinker
 		for (int i = 0; i < currentAnimations.size(); i++)
 		{
 			let currentAnimation = currentAnimations[i];
-			if (currentAnimation)
+			if (currentAnimation && currentAnimation.running)
 			{
 				if (currentAnimation.currentTicks > currentAnimation.frameCount)
 				{
+					currentAnimation.running = false;
 					currentAnimation.destroying = true;
 					deletedAnims.Push(currentAnimation);
 				}
@@ -569,13 +630,13 @@ Class ZSAnimator : Thinker
 	
 	void LinkPSprite(ZSAnimation anim, ZSAnimationFrame f, PSprite psp)
 	{
-		if (!psp) { return; }
+		/*if (!psp) { return; }
 		if (anim.spritesLinked && anim.playbackSpeed != 1.0)
 		{
 			double currentTicks = anim.currentTicks;
 			double nextTicks = currentTicks + anim.playbackSpeed;
 			let nextN = anim.EvaluateNextNode(currentTicks, nextTicks);
-			bool equals = anim.currentNode == nextN;
+			bool equals = true; //anim.currentNode == nextN;
 			// the next node is equal to the current node. thus, we must delay the current state.
 			if (equals && anim.playbackSpeed < 1.0)
 			{
@@ -625,7 +686,7 @@ Class ZSAnimator : Thinker
 					}
 				}
 			}
-		}
+		}*/
 	}
 	
 	void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
@@ -748,11 +809,17 @@ Class ZSAnimator : Thinker
 			let currentAnimation = currentAnimations[i];
 			if (currentAnimation && currentAnimation.currentTicks < currentAnimation.frameCount)
 			{
-				let n = currentAnimation.currentNode;
-				//console.printf("ticks %f", currentAnimation.currentTicks);
+				foreach (k, v : currentAnimation.nodeMap)
+				{
+					let f = currentAnimation.EvaluateFrame(k, currentAnimation.currentTicks, currentAnimation.currentTicks + currentAnimation.playbackSpeed);
+					if (f)
+					{
+						ApplyFrame(currentAnimation, f);
+					}
+				}
+				/*let n = currentAnimation.currentNode;
 				if (n)
 				{
-					// console.printf("i %d", currentTicks);
 					for (int j = 0; j < n.frames.size(); j++)
 					{
 						//let f = n.frames[i];
@@ -762,7 +829,7 @@ Class ZSAnimator : Thinker
 							ApplyFrame(currentAnimation, f);
 						}
 					}
-				}
+				}*/
 			}
 		}
 		
