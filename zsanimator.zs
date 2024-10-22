@@ -630,12 +630,13 @@ Class ZSAnimator : Thinker
 	
 	void LinkPSprite(ZSAnimation anim, ZSAnimationFrame f, PSprite psp)
 	{
-		/*if (!psp) { return; }
+		if (!psp) { return; }
 		if (anim.spritesLinked && anim.playbackSpeed != 1.0)
 		{
 			double currentTicks = anim.currentTicks;
 			double nextTicks = currentTicks + anim.playbackSpeed;
-			let nextN = anim.EvaluateNextNode(currentTicks, nextTicks);
+			// let currentNode = currentNodes.GetIfExists(psp.id);
+			// let nextN = anim.GetNextNode(currentNode, currentTicks, nextTicks);
 			bool equals = true; //anim.currentNode == nextN;
 			// the next node is equal to the current node. thus, we must delay the current state.
 			if (equals && anim.playbackSpeed < 1.0)
@@ -651,9 +652,13 @@ Class ZSAnimator : Thinker
 				//if (st && st.nextstate == NULL || st.nextstate != psp.curState)
 				if (st)
 				{
-					if (nextN && nextN.frames.size() >= 1 && psp.tics > 0)
+					// if (nextN && nextN.frames.size() >= 1 && psp.tics > 0)
+					if (psp.tics > 0)
 					{
-						int ticsToSub = (nextN.frames[0].frameNum - f.frameNum) - 1;
+						let a = ceil(nextTicks);
+						let b = int(currentTicks);
+						int ticsToSub = (a - b) - 1;
+						console.printf("tics to sub %d a %f b %f", ticsToSub, a, b);
 						while (ticsToSub > 0)
 						{
 							int pspTics = psp.tics;
@@ -686,7 +691,7 @@ Class ZSAnimator : Thinker
 					}
 				}
 			}
-		}*/
+		}
 	}
 	
 	void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
