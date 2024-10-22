@@ -635,19 +635,12 @@ Class ZSAnimator : Thinker
 		{
 			double currentTicks = anim.currentTicks;
 			double nextTicks = currentTicks + anim.playbackSpeed;
-			// let currentNode = currentNodes.GetIfExists(psp.id);
-			// let nextN = anim.GetNextNode(currentNode, currentTicks, nextTicks);
-			bool equals = true; //anim.currentNode == nextN;
-			// the next node is equal to the current node. thus, we must delay the current state.
-			if (equals && anim.playbackSpeed < 1.0)
+			let currentNode = anim.currentNodes.GetIfExists(psp.id);
+			let nextN = anim.GetNextNode(currentNode, currentTicks, nextTicks);
+			bool equals = currentNode == nextN;
+			if (anim.playbackSpeed > 1.0)
 			{
-				psp.tics += 1;
-			}
-			else if (anim.playbackSpeed > 1.0)
-			{
-				let st = psp.curState;
-				double diff = nextTicks - currentTicks;
-				
+				let st = psp.curState;	
 				// this psp does not loop, or its next state does not exist, so we need to adjust the frames, possibly even skipping to the next frame if necessary
 				//if (st && st.nextstate == NULL || st.nextstate != psp.curState)
 				if (st)
@@ -655,7 +648,7 @@ Class ZSAnimator : Thinker
 					// if (nextN && nextN.frames.size() >= 1 && psp.tics > 0)
 					if (psp.tics > 0)
 					{
-						let a = ceil(nextTicks);
+						let a = int(nextTicks);
 						let b = int(currentTicks);
 						int ticsToSub = (a - b) - 1;
 						console.printf("tics to sub %d a %f b %f", ticsToSub, a, b);
@@ -690,6 +683,17 @@ Class ZSAnimator : Thinker
 						}
 					}
 				}
+			}
+			else if (anim.playbackSpeed < 1.0)
+			{
+				int a = int(nextTicks);
+				int b = int(currentTicks);
+				int ticsToAdd = 1 - (a - b);
+				if (ticsToAdd > 0)
+				{
+					psp.tics += 1;
+				}
+				console.printf("diff %d a %d b %d", ticsToAdd, a, b);
 			}
 		}
 	}
