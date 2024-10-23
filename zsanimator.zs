@@ -972,9 +972,6 @@ Class ZSAnimator : Thinker
 		from.interpolate = interpolate;
 		to.interpolate = interpolate;
 		
-		from.PrintFrameInfo();
-		to.PrintFrameInfo();
-		
 		anim.frames.Push(from);
 		anim.frames.Push(to);
 		anim.frameCount = tics;
