@@ -214,14 +214,9 @@ Class ZSAnimation
 			if (playbackSpeed >= 0.0) { test = test.next; } else { test = test.prev; }
 			
 			let tfN = -1;
-			// console.printf("ticks %.2f %.2f", ticksNow, ticksNext);
-			// console.printf("n: ");
-			// n.frame.printframeinfo();
 			if (test)
 			{
 				tfN = test.frame.frameNum;
-				// console.printf("test: ");
-				// test.frame.printframeinfo();
 			}
 			
 			if (!forceNext)
@@ -239,7 +234,6 @@ Class ZSAnimation
 				
 				if (result)
 				{
-					// console.printf("return n");
 					return n;
 				}
 			}
@@ -248,19 +242,17 @@ Class ZSAnimation
 			{
 				if (!test)
 				{
-					// console.printf("return n");
 					return n;
 				}
 				
 				bool result = test.frame.frameNum >= int(ticksNext);
 				if (playbackSpeed < 0)
 				{
-					result = test.frame.frameNum < self.frameCount - int(ticksNext);
+					result = test.frame.frameNum <= self.frameCount - int(ticksNext);
 				}
 				
 				if (result)
 				{
-					// console.printf("return test");
 					return test;
 				}
 				
@@ -325,30 +317,7 @@ Class ZSAnimation
 		// return currentNode != NULL;
 	}
 	
-	ZSAnimationFrame GetCurrentPspAsFrame(int layerId)
-	{
-		let ret = ZSAnimationFrame.Create(layerId, 0, (0,0,0), (0,0), (0,0), false);
-		
-		if (layerId != ZSAnimator.PlayerView)
-		{
-			let psp = ply.FindPSprite(layerId);
-			if (!psp) { return ret; }
-			ret.angles = (psp.rotation, 0, 0);
-			ret.pspOffsets = (psp.x, psp.y);
-			ret.pspScale = psp.scale;
-			ret.interpolate = psp.bInterpolate;
-		}
-		else
-		{
-			ret.angles = (ply.mo.ViewRoll, ply.mo.ViewAngle, ply.mo.ViewPitch);
-			if (!ply.ReadyWeapon) { return ret; }
-			ret.pspScale = (ply.ReadyWeapon.FOVScale, ply.ReadyWeapon.FOVScale);
-		}
-		
-		return ret;
-	}
-	
-	ZSAnimationFrame EvaluateFrame(int layer, double ticksA, double ticksB)
+	play ZSAnimationFrame EvaluateFrame(int layer, double ticksA, double ticksB)
 	{
 		let currNode = currentNodes.GetIfExists(layer);
 		let nextNode = GetNextNode(currNode, ticksA, ticksB, true);
@@ -368,7 +337,10 @@ Class ZSAnimation
 		}
 		double tickPerc = 0.0;
 		
-		if ((frameA.frameNum > 0 && frameB.frameNum > 0) && frameA.frameNum != frameB.frameNum)
+		// console.printf("frameA frameNum %d frameB frameNum %d", frameA.frameNum, frameB.frameNum);
+		
+		// if ((frameA.frameNum > 0 && frameB.frameNum > 0) && frameA.frameNum != frameB.frameNum)
+		if (frameA.frameNum != frameB.frameNum)
 		{
 			double tickIn = ticksA;
 			int nA = frameA.frameNum;
@@ -384,7 +356,6 @@ Class ZSAnimation
 		}
 		else
 		{
-			
 			//tickPerc = ticksA%1.0;
 		}
 		
@@ -405,7 +376,7 @@ Class ZSAnimation
 			{
 				if ((frameA.flags & ZSAnimator.LF_AdditiveNoPSP) == 0)
 				{
-					let pspF = GetCurrentPspAsFrame(layer);
+					let pspF = ZSAnimator.GetCurrentPspAsFrame(ply, layer);
 					pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
 					
 					let rotB = (framea.angles.x - pspF.angles.x,
@@ -552,6 +523,7 @@ Class ZSAnimator : Thinker
 	{
 		LF_Additive = 1 << 0, // When set, the offsets for this layer get added to the layer's current offset.
 		LF_AdditiveNoPSP = 1 << 1, // When used in conjunction with LF_Additive, ZSAnimator does not apply the current PSPrite offsets but purely uses the delta between frames.
+		LF_DontCenterPSP = 1 << 2, // When set, the PSPrite will not be centered automatically.
 	}
 	
 	//ZSAnimation currentAnimation;
@@ -757,6 +729,22 @@ Class ZSAnimator : Thinker
 		}
 	}
 	
+	void SetPSPPosition(PSPrite psp, Vector2 pos)
+	{
+		psp.x = pos.x;
+		psp.y = pos.y;
+	}
+	
+	void SetPSPRotation(PSPrite psp, double ang)
+	{
+		psp.rotation = ang;
+	}
+	
+	void SetPSPScale(Psprite psp, Vector2 scale)
+	{
+		psp.scale = scale;
+	}
+	
 	void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
 	{
 		if (f.pspId != ZSAnimator.PlayerView)
@@ -777,21 +765,34 @@ Class ZSAnimator : Thinker
 				
 				psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
 				
+				double x, y;
+				
 				if ((f.flags & ZSAnimator.LF_Additive) != 0)
 				{
-					psp.x = psp.x + xOffs;
-					psp.y = psp.y + yOffs;
+					x = psp.x + xOffs;
+					y = psp.y + yOffs;
 				}
 				else
 				{
-					psp.x = xOffs + 160.0;
-					psp.y = yOffs + 100.0;
+					// console.printf("dontcenter: %d", f.flags & ZSAnimator.LF_DONTCENTERPSP);
+					if ((f.flags & ZSAnimator.LF_DontCenterPSP) == 0)
+					{
+						x = xOffs + 160.0;
+						y = yOffs + 100.0;
+					}
+					else
+					{
+						x = xOffs;
+						y = yOffs + (f.pspId == PSP_WEAPON ? WEAPONTOP : 0);
+					}
 				}
 				if (!psp.bInterpolate)
 				{
 					psp.oldx = psp.x;
 					psp.oldy = psp.y;
 				}
+				
+				SetPSPPosition(psp, (x, y));
 				
 				if (f.flipy || anim.flipAnimX)
 				{
@@ -803,12 +804,12 @@ Class ZSAnimator : Thinker
 				}
 				psp.pivot = (0.5,0.5);
 				
+				Vector2 sc;
+				Double ang;
 				if ((f.flags & ZSAnimator.LF_ADDITIVE) != 0)
 				{
-					let sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
-					psp.scale = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
-					psp.rotation += f.angles.x;
-				
+					sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
+					ang = psp.rotation + f.angles.x;
 				}
 				else
 				{
@@ -816,9 +817,13 @@ Class ZSAnimator : Thinker
 					{
 						f.pspScale = (abs(f.pspScale.x), abs(f.pspScale.y));
 					}
-					psp.scale = f.pspScale;
-					psp.rotation = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
+					sc = f.pspScale;
+					ang = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
 				}
+				
+				SetPSPScale(psp, sc);
+				SetPSPRotation(psp, ang);
+				
 				LinkPSprite(anim, f, psp);
 			}
 		}
@@ -880,6 +885,7 @@ Class ZSAnimator : Thinker
 				foreach (k, v : currentAnimation.nodeMap)
 				{
 					let f = currentAnimation.EvaluateFrame(k, currentAnimation.currentTicks, currentAnimation.currentTicks + abs(currentAnimation.playbackSpeed));
+					f.PrintFrameInfo();
 					if (f)
 					{
 						ApplyFrame(currentAnimation, f);
@@ -922,5 +928,62 @@ Class ZSAnimator : Thinker
 		psp.caller = caller;
 		psp.SetState(caller.ResolveState(lb));
 		psp.firstTic = true;
+	}
+	
+	static ZSAnimationFrame GetCurrentPspAsFrame(PlayerInfo ply, int layerId)
+	{
+		let ret = ZSAnimationFrame.Create(layerId, 0, (0,0,0), (0,0), (0,0), false);
+		
+		if (layerId != ZSAnimator.PlayerView)
+		{
+			let psp = ply.FindPSprite(layerId);
+			if (!psp) { return ret; }
+			ret.angles = (psp.rotation, 0, 0);
+			ret.pspOffsets = (psp.x, psp.y);
+			ret.pspScale = psp.scale;
+			ret.interpolate = psp.bInterpolate;
+		}
+		else
+		{
+			ret.angles = (ply.mo.ViewRoll, ply.mo.ViewAngle, ply.mo.ViewPitch);
+			if (!ply.ReadyWeapon) { return ret; }
+			ret.pspScale = (ply.ReadyWeapon.FOVScale, ply.ReadyWeapon.FOVScale);
+		}
+		
+		return ret;
+	}
+	
+	void AnimatePSPTo(PlayerInfo ply, PSPrite psp, Vector2 pos, Vector2 sc, double ang, int tics, bool interpolate = true)
+	{
+		let frm = GetCurrentPspAsFrame(ply, psp.id);
+		frm.pspOffsets.y -= WEAPONTOP;
+		let to = ZSAnimationFrame.Create(psp.id, tics-1, (ang, 0, 0), pos, sc, interpolate);
+		AnimateFromTo(ply, frm, to, tics, interpolate);
+	}
+	
+	void AnimateFromTo(PlayerInfo ply, ZSAnimationFrame from, ZSAnimationFrame to, int tics, bool interpolate = true)
+	{
+		ZSAnimation anim = New("ZSAnimation");
+		// let curPos = (psp.x, psp.y);
+		// let curAng = psp.rotation;
+		// let curSc = psp.scale;
+		from.frameNum = 0;
+		to.frameNum = tics-1;
+		from.interpolate = interpolate;
+		to.interpolate = interpolate;
+		
+		from.PrintFrameInfo();
+		to.PrintFrameInfo();
+		
+		anim.frames.Push(from);
+		anim.frames.Push(to);
+		anim.frameCount = tics;
+		anim.SetLayerFlags(from.pspId, LF_DontCenterPSP);
+		
+		anim.LinkList();
+		
+		// anim.frames.Push(ZSAnimationFrame.Create(psp.id, 0, (curAng, 0, 0), curPos, curSc, interpolate));
+		// anim.frames.Push(ZSAnimationFrame.Create(psp.id, tics, (ang, 0, 0), pos, sc, interpolate));
+		StartAnimation(ply, anim);
 	}
 }
