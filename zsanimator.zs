@@ -885,7 +885,7 @@ Class ZSAnimator : Thinker
 				foreach (k, v : currentAnimation.nodeMap)
 				{
 					let f = currentAnimation.EvaluateFrame(k, currentAnimation.currentTicks, currentAnimation.currentTicks + abs(currentAnimation.playbackSpeed));
-					f.PrintFrameInfo();
+					// f.PrintFrameInfo();
 					if (f)
 					{
 						ApplyFrame(currentAnimation, f);
