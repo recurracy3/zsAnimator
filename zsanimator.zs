@@ -461,6 +461,23 @@ Class ZSAnimation
 				f.pspId = replacement;
 			}
 		}
+		
+		// Map<int, ZSAnimationFrameNode> temp;
+		
+		// MapIterator<int, ZSAnimationFrameNode> it;
+		// it.Init(nodemap);
+		
+		// foreach(k, v : it)
+		// {
+			// let newK = k;
+			// if (k == original)
+			// {
+				// newK = replacement;
+			// }
+			// console.printf("inserting into temp %d", newK);
+			// temp.Insert(newK, v);
+		// }
+		// nodemap = temp;
 	}
 	
 	void GetFrames(Array<int> pspIds, out Array<ZSAnimationFrame> outframes, int startIndex = -1, int endIndex = -1)
@@ -537,7 +554,6 @@ Class ZSAnimator : Thinker
 		let anim = ZSAnimation(New(animationClass));
 		anim.Initialize();
 		anim.MakeFrameList();
-		anim.LinkList();
 		return anim;
 	}
 	
@@ -578,6 +594,7 @@ Class ZSAnimator : Thinker
 			cnIt.ReInit();
 		}
 		
+		anim.LinkList();
 		anim.currentTicks = frame;
 		anim.running = true;
 		anim.playbackSpeed = playbackSpeed;
@@ -774,7 +791,6 @@ Class ZSAnimator : Thinker
 				}
 				else
 				{
-					// console.printf("dontcenter: %d", f.flags & ZSAnimator.LF_DONTCENTERPSP);
 					if ((f.flags & ZSAnimator.LF_DontCenterPSP) == 0)
 					{
 						x = xOffs + 160.0;
@@ -882,7 +898,9 @@ Class ZSAnimator : Thinker
 			let currentAnimation = currentAnimations[i];
 			if (currentAnimation && currentAnimation.currentTicks < currentAnimation.frameCount)
 			{
-				foreach (k, v : currentAnimation.nodeMap)
+				MapIterator<int, ZSanimationFrameNode> it;
+				it.Init(currentAnimation.nodeMap);
+				foreach (k, v : it)
 				{
 					let f = currentAnimation.EvaluateFrame(k, currentAnimation.currentTicks, currentAnimation.currentTicks + abs(currentAnimation.playbackSpeed));
 					// f.PrintFrameInfo();
