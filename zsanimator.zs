@@ -573,6 +573,8 @@ Class ZSAnimator : Thinker
 			// anim.currentNode = anim.lastNode;
 		// }
 		
+		anim.LinkList();
+		
 		if (playbackSpeed < 0)
 		{
 			Map<int, ZSAnimationFrameNode> temp;
@@ -591,7 +593,6 @@ Class ZSAnimator : Thinker
 			cnIt.ReInit();
 		}
 		
-		anim.LinkList();
 		anim.currentTicks = frame;
 		anim.running = true;
 		anim.playbackSpeed = playbackSpeed;
@@ -998,4 +999,9 @@ Class ZSAnimator : Thinker
 		// anim.frames.Push(ZSAnimationFrame.Create(psp.id, tics, (ang, 0, 0), pos, sc, interpolate));
 		StartAnimation(ply, anim);
 	}
+}
+
+class ZSAnimatorDebugger : EventHandler
+{
+	
 }
