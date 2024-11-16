@@ -211,12 +211,9 @@ Class ZSAnimation
 		{
 			iterations++;
 			let test = n;
-			if (playbackSpeed >= 0.0) { test = test.next; } else { test = test.prev; }
-			
-			let tfN = -1;
 			if (test)
 			{
-				tfN = test.frame.frameNum;
+				if (playbackSpeed >= 0.0) { test = test.next; } else { test = test.prev; }
 			}
 			
 			if (!forceNext)
