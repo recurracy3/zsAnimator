@@ -48,6 +48,21 @@ class ZSAnimationFrame
 		return frame;
 	}
 	
+	ZSAnimationFrame Clone()
+	{
+		ZSAnimationFrame f = New("ZSAnimationFrame");
+		f.pspId = self.pspId;
+		f.frameNum = self.frameNum;
+		f.angles = self.angles;
+		f.pspOffsets = self.pspOffsets;
+		f.pspScale = self.pspScale;
+		f.interpolate = self.interpolate;
+		f.flipx = self.flipx;
+		f.flipy = self.flipy;
+		f.flags = self.flags;
+		return f;
+	}
+	
 	void PrintFrameInfo()
 	{
 		console.printf("psp %d frame %d a: (%.3f %.3f %.3f) p: (%.3f %.3f) s: (%.3f %.3f) i: %d", 
@@ -475,6 +490,26 @@ Class ZSAnimation
 			// temp.Insert(newK, v);
 		// }
 		// nodemap = temp;
+	}
+	
+	void CopyFrames(int origPspId, int newPspId)
+	{
+		Array<ZSAnimationFrame> newFrames;
+		for (int i = 0; i < frames.Size(); i++)
+		{
+			let f = frames[i];
+			if (f.pspId == origPspId)
+			{
+				let nf = f.Clone();
+				nf.pspId = newPspId;
+				newFrames.Push(nf);
+			}
+		}
+		
+		if (newFrames.Size() > 0)
+		{
+			frames.Append(newFrames);
+		}
 	}
 	
 	void GetFrames(Array<int> pspIds, out Array<ZSAnimationFrame> outframes, int startIndex = -1, int endIndex = -1)
@@ -941,6 +976,7 @@ Class ZSAnimator : Thinker
 		if (!ply) { return; }
 		//ply.mo.A_Overlay(pspId, lb, noOverride);
 		PSprite psp = ply.GetPSprite(pspId);
+		if (!psp) { return; }
 		psp.caller = caller;
 		psp.SetState(caller.ResolveState(lb));
 		psp.firstTic = true;
