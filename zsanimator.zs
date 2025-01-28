@@ -48,6 +48,16 @@ class ZSAnimationFrame
 		return frame;
 	}
 	
+	void PrintFrameInfo()
+	{
+		console.printf("psp %d frame %d a: (%.3f %.3f %.3f) p: (%.3f %.3f) s: (%.3f %.3f) i: %d", 
+			pspId, frameNum, 
+			angles.x, angles.y, angles.z, 
+			pspOffsets.x, pspOffsets.y, 
+			pspScale.x, pspScale.y, 
+			interpolate);
+	}
+	
 	ZSAnimationFrame Clone()
 	{
 		ZSAnimationFrame f = New("ZSAnimationFrame");
@@ -61,16 +71,6 @@ class ZSAnimationFrame
 		f.flipy = self.flipy;
 		f.flags = self.flags;
 		return f;
-	}
-	
-	void PrintFrameInfo()
-	{
-		console.printf("psp %d frame %d a: (%.3f %.3f %.3f) p: (%.3f %.3f) s: (%.3f %.3f) i: %d", 
-			pspId, frameNum, 
-			angles.x, angles.y, angles.z, 
-			pspOffsets.x, pspOffsets.y, 
-			pspScale.x, pspScale.y, 
-			interpolate);
 	}
 }
 
@@ -144,6 +144,7 @@ Class ZSAnimation
 	{
 		foreach(frame : frames)
 		{
+			if (!frame || frame.bDestroyed) { continue; }
 			ZSAnimationFrameNode n = ZSAnimationFrameNode.Create();
 			if (!nodeMap.CheckKey(frame.pspId))
 			{
@@ -189,6 +190,7 @@ Class ZSAnimation
 		for (int i = 0; i < frames.size(); i++)
 		{
 			let f = frames[i];
+			if (!f || f.bDestroyed) { continue; }
 			if (f.pspId == pspId)
 			{
 				if (set)
@@ -233,7 +235,7 @@ Class ZSAnimation
 			
 			if (!forceNext)
 			{
-				if (!test)
+				if (!test || !test.frame || test.frame.bDestroyed)
 				{
 					return n;
 				}
@@ -252,7 +254,7 @@ Class ZSAnimation
 			
 			if (forceNext)
 			{
-				if (!test)
+				if (!test || !test.frame || test.frame.bDestroyed)
 				{
 					return n;
 				}
@@ -336,6 +338,7 @@ Class ZSAnimation
 		
 		let ret = ZSAnimationFrame.Create(layer, int(ticksA), (0,0,0), (0,0), (0,0), false);
 		
+		if (!currNode.frame || currNode.frame.bDestroyed) { return null; }
 		ZSAnimationFrame frameA = currNode.frame;
 		ZSAnimationFrame frameB = currNode.frame;
 		ret.pspId = frameA.pspId;
@@ -464,32 +467,29 @@ Class ZSAnimation
 		return ret;
 	}
 	
+	void DeleteFrames(int pspId)
+	{
+		for (int i = 0; i < frames.Size(); i++)
+		{
+			let f = frames[i];
+			if (!f || f.bDestroyed) { continue; }
+			if (f.pspId == pspId)
+			{
+				f.Destroy();
+			}
+		}
+	}
+	
 	void ReplacePspIds(int original, int replacement)
 	{
 		for (int i = 0; i < frames.Size(); i++)
 		{
 			let f = frames[i];
+			if (!f || f.bDestroyed) { continue; }
 			if (f.pspId == original) {
 				f.pspId = replacement;
 			}
 		}
-		
-		// Map<int, ZSAnimationFrameNode> temp;
-		
-		// MapIterator<int, ZSAnimationFrameNode> it;
-		// it.Init(nodemap);
-		
-		// foreach(k, v : it)
-		// {
-			// let newK = k;
-			// if (k == original)
-			// {
-				// newK = replacement;
-			// }
-			// console.printf("inserting into temp %d", newK);
-			// temp.Insert(newK, v);
-		// }
-		// nodemap = temp;
 	}
 	
 	void CopyFrames(int origPspId, int newPspId)
@@ -498,6 +498,7 @@ Class ZSAnimation
 		for (int i = 0; i < frames.Size(); i++)
 		{
 			let f = frames[i];
+			if (!f || f.bDestroyed) { continue; }
 			if (f.pspId == origPspId)
 			{
 				let nf = f.Clone();
@@ -534,6 +535,18 @@ Class ZSAnimation
 			// the frame's number falls between the arguments
 			{
 				outframes.push(f);
+			}
+		}
+	}
+	
+	void OffsetPositions(int pspId, Vector2 offsets)
+	{
+		foreach(f : frames)
+		{
+			if (f.pspId == pspId)
+			{
+				f.pspOffsets.x += offsets.x;
+				f.pspOffsets.y += offsets.y;
 			}
 		}
 	}
@@ -592,7 +605,7 @@ Class ZSAnimator : Thinker
 	// This function can be used to start an animation directly and let ZSAnimator handle everything.
 	void StartAnimation(PlayerInfo ply, ZSAnimation anim, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0)
 	{
-		playbackSpeed *= CVar.FindCVar("zsa_playbackSpeed").GetFloat();
+		playbackSpeed *= CVar.GetCVar("zsa_playbackSpeed", players[consoleplayer]).GetFloat();
 		/*let anim = ZSAnimation(New(animationClass));
 		anim.Initialize();
 		anim.MakeFrameList();
@@ -659,6 +672,18 @@ Class ZSAnimator : Thinker
 		currentAnimation.lastTickDiff = 0;
 		currentAnimation.flipAnimX = flipAnimX;
 		currentAnimation.flipAnimY = flipAnimY;*/
+	}
+	
+	void StopAnimation(Class<ZSanimation> anim)
+	{
+		for (int i = 0; i < currentAnimations.Size(); i++)
+		{
+			let c = currentAnimations[i];
+			if (c IS anim)
+			{
+				c.Destroy();
+			}
+		}
 	}
 	
 	void StopAllAnimations()
@@ -745,7 +770,7 @@ Class ZSAnimator : Thinker
 								ticsToSub -= subtracted;
 								psp.tics = newtics;
 							}
-							else if (pspTics == 1)
+							else if (pspTics >= 0)
 							{
 								if (st && st.nextstate)
 								{
@@ -753,8 +778,9 @@ Class ZSAnimator : Thinker
 									st = psp.curstate;
 									ticsToSub -= 1;
 								}
-								else
+								else if (st && !st.nextstate)
 								{
+									psp.destroy();
 									ticsToSub = 0;
 								}
 							}
@@ -878,11 +904,11 @@ Class ZSAnimator : Thinker
 		}
 		else
 		{
-			float viewScale = CVar.FindCVar('zsa_viewscale').GetFloat();
+			float viewScale = CVar.GetCVar("zsa_viewscale", players[consoleplayer]).GetFloat();
 			double roll = f.angles.x * viewScale;
 			double ang = f.angles.y * viewScale;
 			double pit = f.angles.z * viewScale;
-			double fovScale = f.pspscale.x * viewScale;
+			double fovScale = f.pspscale.x;// * viewScale;
 			
 			/*if (anim.flipAnimX)
 			{
@@ -978,7 +1004,8 @@ Class ZSAnimator : Thinker
 		PSprite psp = ply.GetPSprite(pspId);
 		if (!psp) { return; }
 		psp.caller = caller;
-		psp.SetState(caller.ResolveState(lb));
+		let st = caller.FindState(lb, true);
+		psp.SetState(st);
 		psp.firstTic = true;
 	}
 	
