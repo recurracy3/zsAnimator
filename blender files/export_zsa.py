@@ -27,13 +27,13 @@ class zScriptAnimation:
     def __init__(self, animationName):
         self.frameCount = 0
         self.frames = []
-        self.className = 'ZSAnimationPSP' + animationName
+        self.className = 'ZSAnimation' + animationName
         self.filledIn = False
     
     # convert this data to a zscript file
     def toZscript(self):
         result = ''
-        result += 'class {0} : ZSAnimationPSP {{\n'.format(self.className)
+        result += 'class {0} : ZSAnimation {{\n'.format(self.className)
         result += '\toverride void Initialize() {{\n\t\tframeCount = {0}; \n\t\tfilledIn = {1};'.format(self.frameCount, self.filledIn)
         result += '\t}\n'
         result += '\toverride void MakeFrameList() {\n'
