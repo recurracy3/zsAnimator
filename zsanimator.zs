@@ -882,7 +882,7 @@ Class ZSAnimator : Thinker
 			psp.bPivotPercent = true;
 			let xOffs = f.pspOffsets.x*(anim.flipAnimX ? 1 : -1);
 			let yOffs = f.pspOffsets.y*(anim.flipAnimY ? -1 : -1);//-WEAPONTOP;
-			// psp.bAddWeapon = f.followWeapon;
+			psp.bAddWeapon = false;
 			if (!psp.bAddWeapon)
 			{
 				//yOffs += WEAPONTOP/1.2;
