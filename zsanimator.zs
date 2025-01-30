@@ -16,13 +16,14 @@ class ZSAnimationFrame
 	bool interpolate;
 	bool flipx;
 	bool flipy;
-	string sprite;
-	bool followWeapon;
+	ZSAnimation anim;
+	string reference;
 	// ZSAnimationFrameNode node;
 	
 	int flags;
 	
-	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool layered = false, bool followWeapon = false)
+	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool layered = false,
+		string reference = "")
 	{
 		let frame = ZSAnimationFrame(New("ZSAnimationFrame"));
 		frame.frameNum = frameNum;
@@ -44,7 +45,7 @@ class ZSAnimationFrame
 		}
 		
 		frame.interpolate = interpolate;
-		frame.followWeapon = followWeapon;
+		frame.reference = reference;
 		return frame;
 	}
 	
@@ -70,6 +71,7 @@ class ZSAnimationFrame
 		f.flipx = self.flipx;
 		f.flipy = self.flipy;
 		f.flags = self.flags;
+		f.reference = self.reference;
 		return f;
 	}
 }
@@ -109,6 +111,48 @@ class ZSAnimationFrameNode
 	}
 }
 
+// References allow you to change the location and rotation of things that AREN'T Psprites, but are still things seen from the first person perspective.
+// For example, a flashlight emitter, or a laser pointer emitter.
+class ZSAnimationReference : Actor
+{
+	PlayerInfo ply;
+	Weapon parent;
+	Vector2 animPos;
+	Vector3 animRot; 
+	
+	Default
+	{
+		+NOBLOCKMAP;
+		+NOINTERACTION;
+		-SOLID;
+		+NOGRAVITY;
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		
+		// Since references are supposed to turn a local view coordinate into a world coordinate,
+		// use the player reference to adjust the coordinates accordingly.
+		// Also make sure to use Quaternion maths to prevent gimbal locking and rotate the reference.
+		
+		console.printf("bone pos %.2f %.2f", self.animPos.x, self.animPos.y);
+		
+		//float viewZ = ply.viewz + (ply.mo.height * 0.5 - ply.mo.floorclip);
+		float viewZ = ply.viewz;
+		Vector3 plyAngs = (ply.mo.ViewAngle + ply.mo.angle, ply.mo.ViewPitch + ply.mo.Pitch, ply.mo.ViewRoll + ply.mo.Roll);
+		Vector3 plyPos = (ply.mo.pos.x, ply.mo.pos.y, viewZ);
+		console.printf("ply pos %.2f %.2f %.2f", plyPos.x, plyPos.y, viewZ);
+		
+		Quat dir = Quat.FromAngles(plyAngs.x, plyAngs.y, plyAngs.z);
+		Vector3 offs = dir * (10.0, self.animPos.x/15.0, self.animPos.y/15.0);
+		console.printf("offs %.2f %.2f %.2f", offs.x, offs.y, offs.z);
+		Vector3 glob = level.Vec3Offset(plyPos, (offs.x, offs.y, offs.z));
+		console.printf("glob %.2f %.2f %.2f", glob.x, glob.y, glob.z);
+		self.SetOrigin(glob, true);
+	}
+}
+
 Class ZSAnimation
 {
 	PlayerInfo ply;
@@ -133,6 +177,9 @@ Class ZSAnimation
 	// DO NOT change this. It's done by ZSAnimator itself.
 	bool filledIn;
 	ZSAnimator currentAnimator;
+	
+	// Used in conjecture with the 'reference' custom property. 
+	Map<string, ZSAnimationReference> references;
 	
 	// It's possible for animations to fall 'inbetween' tics defined by Zdoom, aka the default tic rate of 35/s, thanks to the variable framerate.
 	// When this happens we need to determine the positions, rotations and scale between the last frame and the current frame as a percentage.
@@ -170,6 +217,11 @@ Class ZSAnimation
 				n = n.next;
 			}
 		}
+	}
+	
+	void SetReference(string key, ZSAnimationReference val)
+	{
+		references.Insert(key, val);
 	}
 	
 	void FlipLayer(int pspId, bool flipx = false, bool flipy = false)
@@ -342,6 +394,7 @@ Class ZSAnimation
 		ZSAnimationFrame frameA = currNode.frame;
 		ZSAnimationFrame frameB = currNode.frame;
 		ret.pspId = frameA.pspId;
+		ret.reference = frameA.reference;
 		if (nextNode)
 		{
 			frameB = nextNode.frame;
@@ -377,7 +430,6 @@ Class ZSAnimation
 		// console.printf("psp %d tickPerc %f ticksA %f ticksB %f frameA %d frameB %d", layer, tickPerc, ticksA, ticksB, frameA.frameNum, frameB.frameNum);
 		
 		ret.interpolate = frameA.interpolate;
-		ret.sprite = frameA.sprite;
 		ret.flipy = frameA.flipy;
 		ret.flags = frameA.flags;
 		
@@ -578,7 +630,7 @@ Class ZSAnimator : Thinker
 	enum SpecialAnimNums
 	{
 		PlayerView = -5000,
-		PSP_HANDS = 1001,
+		None = -5001,
 	}
 	
 	enum ZSAFlags
@@ -821,123 +873,155 @@ Class ZSAnimator : Thinker
 		psp.scale = scale;
 	}
 	
-	void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
+	void ApplyPSP(ZSanimation anim, ZSanimationFrame f)
 	{
-		if (f.pspId != ZSAnimator.PlayerView)
-		{
-			let psp = ply.FindPSprite(f.pspId);
+		let psp = ply.FindPSprite(f.pspId);
 			
-			if (psp)
+		if (psp)
+		{
+			psp.bPivotPercent = true;
+			let xOffs = f.pspOffsets.x*(anim.flipAnimX ? 1 : -1);
+			let yOffs = f.pspOffsets.y*(anim.flipAnimY ? -1 : -1);//-WEAPONTOP;
+			// psp.bAddWeapon = f.followWeapon;
+			if (!psp.bAddWeapon)
 			{
-				psp.bPivotPercent = true;
-				let xOffs = f.pspOffsets.x*(anim.flipAnimX ? 1 : -1);
-				let yOffs = f.pspOffsets.y*(anim.flipAnimY ? -1 : -1);//-WEAPONTOP;
-				psp.bAddWeapon = f.followWeapon;
-				if (!psp.bAddWeapon)
-				{
-					//yOffs += WEAPONTOP/1.2;
-					//yOffs /= 1.2;
-				}
-				
-				psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
-				
-				double x, y;
-				
-				if ((f.flags & ZSAnimator.LF_Additive) != 0)
-				{
-					x = psp.x + xOffs;
-					y = psp.y + yOffs;
-				}
-				else
-				{
-					if ((f.flags & ZSAnimator.LF_DontCenterPSP) == 0)
-					{
-						x = xOffs + 160.0;
-						y = yOffs + 100.0;
-					}
-					else
-					{
-						x = xOffs;
-						y = yOffs + (f.pspId == PSP_WEAPON ? WEAPONTOP : 0);
-					}
-				}
-				if (!psp.bInterpolate)
-				{
-					psp.oldx = psp.x;
-					psp.oldy = psp.y;
-				}
-				
-				SetPSPPosition(psp, (x, y));
-				
-				if (f.flipy || anim.flipAnimX)
-				{
-					psp.bflip = true;
-				}
-				else
-				{
-					psp.bflip = false;
-				}
-				psp.pivot = (0.5,0.5);
-				
-				Vector2 sc;
-				Double ang;
-				if ((f.flags & ZSAnimator.LF_ADDITIVE) != 0)
-				{
-					sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
-					ang = psp.rotation + f.angles.x;
-				}
-				else
-				{
-					if (psp.bflip)
-					{
-						f.pspScale = (abs(f.pspScale.x), abs(f.pspScale.y));
-					}
-					sc = f.pspScale;
-					ang = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
-				}
-				
-				SetPSPScale(psp, sc);
-				SetPSPRotation(psp, ang);
-				
-				LinkPSprite(anim, f, psp);
+				//yOffs += WEAPONTOP/1.2;
+				//yOffs /= 1.2;
 			}
-		}
-		else
-		{
-			float viewScale = CVar.GetCVar("zsa_viewscale", players[consoleplayer]).GetFloat();
-			double roll = f.angles.x * viewScale;
-			double ang = f.angles.y * viewScale;
-			double pit = f.angles.z * viewScale;
-			double fovScale = f.pspscale.x;// * viewScale;
 			
-			/*if (anim.flipAnimX)
-			{
-				roll *= -1.0;
-				ang *= -1.0;
-			}*/
+			psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
+			
+			double x, y;
 			
 			if ((f.flags & ZSAnimator.LF_Additive) != 0)
 			{
-				roll += ply.mo.viewroll;
-				ang += ply.mo.viewangle;
-				pit += ply.mo.viewpitch;
-				if (ply.ReadyWeapon)
+				x = psp.x + xOffs;
+				y = psp.y + yOffs;
+			}
+			else
+			{
+				if ((f.flags & ZSAnimator.LF_DontCenterPSP) == 0)
 				{
-					if (ply.ReadyWeapon.FOVScale == 0)
-					{
-						ply.ReadyWeapon.FOVScale = 1;
-					}
-					
-					fovScale += ply.ReadyWeapon.FOVScale;
+					x = xOffs + 160.0;
+					y = yOffs + 100.0;
+				}
+				else
+				{
+					x = xOffs;
+					y = yOffs + (f.pspId == PSP_WEAPON ? WEAPONTOP : 0);
 				}
 			}
-			ply.mo.A_SetViewRoll(roll, SPF_INTERPOLATE);
-			ply.mo.A_SetViewAngle(ang, SPF_INTERPOLATE);
-			ply.mo.A_SetViewPitch(pit, SPF_INTERPOLATE);
+			if (!psp.bInterpolate)
+			{
+				psp.oldx = psp.x;
+				psp.oldy = psp.y;
+			}
+			
+			SetPSPPosition(psp, (x, y));
+			
+			if (f.flipy || anim.flipAnimX)
+			{
+				psp.bflip = true;
+			}
+			else
+			{
+				psp.bflip = false;
+			}
+			psp.pivot = (0.5,0.5);
+			
+			Vector2 sc;
+			Double ang;
+			if ((f.flags & ZSAnimator.LF_ADDITIVE) != 0)
+			{
+				sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
+				ang = psp.rotation + f.angles.x;
+			}
+			else
+			{
+				if (psp.bflip)
+				{
+					f.pspScale = (abs(f.pspScale.x), abs(f.pspScale.y));
+				}
+				sc = f.pspScale;
+				ang = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
+			}
+			
+			SetPSPScale(psp, sc);
+			SetPSPRotation(psp, ang);
+			
+			LinkPSprite(anim, f, psp);
+		}
+	}
+	
+	void ApplyView(ZSAnimation anim, ZSAnimationFrame f)
+	{
+		float viewScale = CVar.GetCVar("zsa_viewscale", players[consoleplayer]).GetFloat();
+		double roll = f.angles.x * viewScale;
+		double ang = f.angles.y * viewScale;
+		double pit = f.angles.z * viewScale;
+		double fovScale = f.pspscale.x;// * viewScale;
+		
+		/*if (anim.flipAnimX)
+		{
+			roll *= -1.0;
+			ang *= -1.0;
+		}*/
+		
+		if ((f.flags & ZSAnimator.LF_Additive) != 0)
+		{
+			roll += ply.mo.viewroll;
+			ang += ply.mo.viewangle;
+			pit += ply.mo.viewpitch;
 			if (ply.ReadyWeapon)
 			{
-				ply.ReadyWeapon.FOVScale = fovScale;
+				if (ply.ReadyWeapon.FOVScale == 0)
+				{
+					ply.ReadyWeapon.FOVScale = 1;
+				}
+				
+				fovScale += ply.ReadyWeapon.FOVScale;
 			}
+		}
+		ply.mo.A_SetViewRoll(roll, SPF_INTERPOLATE);
+		ply.mo.A_SetViewAngle(ang, SPF_INTERPOLATE);
+		ply.mo.A_SetViewPitch(pit, SPF_INTERPOLATE);
+		if (ply.ReadyWeapon)
+		{
+			ply.ReadyWeapon.FOVScale = fovScale;
+		}
+	}
+	
+	void ApplyReference(ZSanimation anim, ZSAnimationFrame f)
+	{
+		if (!anim.references.CheckKey(f.reference))
+		{
+			ThrowAbortException(string.Format("Animation {0} contains a frame with a reference ({1}), but there 
+			is no reference set in the dictionary.\nMake sure to call ZSAnimation.SetReference()", anim.GetClassName(), f.reference));
+			return;
+		}
+		
+		ZSAnimationReference animRef = anim.references.Get(f.reference);
+		
+		animRef.animPos = f.pspOffsets;
+		animRef.animRot = f.angles;
+	}
+	
+	void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
+	{
+		if (f.pspId == ZSAnimator.PlayerView)
+		{
+			console.printf("apply view %d", f.pspid);
+			ApplyView(anim, f);
+		}
+		else if (f.pspId != ZSAnimator.None)
+		{
+			console.printf("apply psp %d", f.pspid);
+			ApplyPsp(anim, f);
+		}
+		else if (f.pspId == ZSAnimator.None && f.reference)
+		{
+			console.printf("apply ref %d", f.pspid);
+			ApplyReference(anim, f);
 		}
 	}
 	
