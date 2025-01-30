@@ -23,6 +23,8 @@ from bpy import context
 import bpy.props
 import functools
 
+optionalProperties = {"reference"}
+
 class zScriptAnimation:
     def __init__(self, animationName):
         self.frameCount = 0
@@ -59,6 +61,8 @@ class zScriptFrame:
         
     #convert this data to a zscript line
     def toZscript(self, optionalProperties):
+        if (self.layerName.startswith("!")):
+            self.layerName = 'ZSAnimator.None'
         # format: 
         # {0}: bone name (psp index)
         # {1}: frame number
@@ -66,18 +70,24 @@ class zScriptFrame:
         # {5}-{6}: pspoffset x y
         # {7}-{8}: pspscale x y
         # {9}: interpolation
-        curStr = ("frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}))").format(self.layerName, self.frame,
+        curStr = ("frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}").format(self.layerName, self.frame,
             self.rotation.x, self.rotation.y, self.rotation.z,
             self.posOffs.z, self.posOffs.y,
             self.scale.z, self.scale.y,
             self.interpolation)
-        return curStr
             
-def optional_property_to_str(properties, key, default_val):
-    if key in properties:
-        if (properties[key] != default_val):
-            return '{0}: {1}'.format(key, properties[key])
-    return None
+        print(self.optionals)
+        for k in self.optionals:
+            op = self.optionals[k]
+            curStr += ",{0}: ".format(k)
+            if isinstance(op, str):
+                curStr += "\""
+            curStr += op
+            if isinstance(op, str):
+                curStr += "\""
+            
+        curStr += "))"
+        return curStr
 
 def write_file(fname, zAnim):
     with open(fname, 'w', encoding='utf-8') as f:
@@ -192,6 +202,14 @@ def exportZS(context, filename, animName, actionName, fillinFrames):
                     
             properties[bone.name][propname].append(eval)
             
+            #check if custom properties exist for this bone
+            for p in optionalProperties:
+                print(p)
+                try:
+                    properties[bone.name]['optionals'][p] = bone[p]
+                except:
+                    print("no {0}".format(p))
+            
             # we need to remember when interpolation should not be applied, so we can get the last keyframe before the current one
             keyframe = get_last_keyframe(fc, framenum)
             if keyframe != None:
@@ -217,16 +235,21 @@ def exportZS(context, filename, animName, actionName, fillinFrames):
             totalFrames += 1
             print('total frames ', totalFrames)
         
+        print('collected properties:')
+        print(properties)
         #if (not (framenum == scene.frame_start)):
         for key in properties:
             zFrame = zScriptFrame(frameOffs)
             zFrame.layerName = key
             val = properties[key]
+            print(properties[key])
             zFrame.rotation = mathutils.Euler((val['rotation_euler'][0], val['rotation_euler'][1], val['rotation_euler'][2]), 'XYZ')
             zFrame.posOffs = mathutils.Vector((val['location'][0], val['location'][1], val['location'][2]))
             zFrame.scale = mathutils.Vector((val['scale'][0], val['scale'][1], val['scale'][2]))
             
             zFrame.interpolation = True if val['interpolation'] != 'CONSTANT' else False
+            
+            zFrame.optionals = val['optionals']
             
             zAnim.frames.append(zFrame)
                 
