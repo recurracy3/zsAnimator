@@ -136,20 +136,23 @@ class ZSAnimationReference : Actor
 		// use the player reference to adjust the coordinates accordingly.
 		// Also make sure to use Quaternion maths to prevent gimbal locking and rotate the reference.
 		
-		console.printf("bone pos %.2f %.2f", self.animPos.x, self.animPos.y);
-		
 		//float viewZ = ply.viewz + (ply.mo.height * 0.5 - ply.mo.floorclip);
 		float viewZ = ply.viewz;
 		Vector3 plyAngs = (ply.mo.ViewAngle + ply.mo.angle, ply.mo.ViewPitch + ply.mo.Pitch, ply.mo.ViewRoll + ply.mo.Roll);
 		Vector3 plyPos = (ply.mo.pos.x, ply.mo.pos.y, viewZ);
-		console.printf("ply pos %.2f %.2f %.2f", plyPos.x, plyPos.y, viewZ);
 		
 		Quat dir = Quat.FromAngles(plyAngs.x, plyAngs.y, plyAngs.z);
 		Vector3 offs = dir * (10.0, self.animPos.x/15.0, self.animPos.y/15.0);
-		console.printf("offs %.2f %.2f %.2f", offs.x, offs.y, offs.z);
 		Vector3 glob = level.Vec3Offset(plyPos, (offs.x, offs.y, offs.z));
-		console.printf("glob %.2f %.2f %.2f", glob.x, glob.y, glob.z);
 		self.SetOrigin(glob, true);
+		
+		// set the angle of the reference
+		
+		Quat bonAng = Quat.FromAngles(animRot.x, animRot.z-90, animRot.y);
+		Quat myrotQ = dir * bonAng;
+		Vector3 myrotV = myrotQ * (1,0,0);
+		self.A_SetAngle(atan2(myrotV.y, myrotV.x), SPF_INTERPOLATE);
+		self.A_SetPitch(-asin(myrotV.z), SPF_INTERPOLATE);
 	}
 }
 
@@ -995,32 +998,41 @@ Class ZSAnimator : Thinker
 	{
 		if (!anim.references.CheckKey(f.reference))
 		{
-			ThrowAbortException(string.Format("Animation {0} contains a frame with a reference ({1}), but there 
-			is no reference set in the dictionary.\nMake sure to call ZSAnimation.SetReference()", anim.GetClassName(), f.reference));
+			ThrowAbortException(string.Format("Animation %s contains a frame with a reference (%s), but there is no reference set in the dictionary. " .. 
+			"Make sure to call ZSAnimation.SetReference()", anim.GetClassName(), f.reference));
 			return;
 		}
 		
 		ZSAnimationReference animRef = anim.references.Get(f.reference);
+		if (!animRef) { return; }
 		
-		animRef.animPos = f.pspOffsets;
-		animRef.animRot = f.angles;
+		Vector2 pos = f.pspOffsets;
+		if (anim.flipAnimX || f.flipx)
+		{
+			pos = (pos.x * -1, pos.y);
+		}
+		animRef.animPos = pos;
+		
+		Vector3 ang = f.angles;
+		if (anim.flipAnimX || f.flipx)
+		{
+			ang = (ang.x * -1, ang.y, ang.z);
+		}
+		animRef.animRot = ang;
 	}
 	
 	void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
 	{
 		if (f.pspId == ZSAnimator.PlayerView)
 		{
-			console.printf("apply view %d", f.pspid);
 			ApplyView(anim, f);
 		}
 		else if (f.pspId != ZSAnimator.None)
 		{
-			console.printf("apply psp %d", f.pspid);
 			ApplyPsp(anim, f);
 		}
 		else if (f.pspId == ZSAnimator.None && f.reference)
 		{
-			console.printf("apply ref %d", f.pspid);
 			ApplyReference(anim, f);
 		}
 	}
