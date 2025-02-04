@@ -876,6 +876,64 @@ Class ZSAnimator : Thinker
 		psp.scale = scale;
 	}
 	
+	// Credits to dodopod
+	static double, double, double QuatToEuler(quat r)
+    {
+        // Roll        
+        double sinRCosP = 2 * (r.w * r.x + r.y * r.z);
+        double cosRCosP = 1 - 2 * (r.x * r.x + r.y * r.y);
+        double roll = Atan2(sinRCosP, cosRCosP);
+
+        // Pitch
+        double sinP = 2 * (r.w * r.y - r.z * r.x);
+        double pitch;
+        if (Abs(sinP) >= 1) 
+            pitch = 90 * (sinP < 0 ? -1 : 1);
+        else 
+            pitch = Asin(sinP);
+
+        // Yaw
+        double sinYCosP = 2 * (r.w * r.z + r.x * r.y);
+        double cosYCosP = 1 - 2 * (r.y * r.y + r.z * r.z);
+        double yaw = Atan2(sinYCosP, cosYCosP);
+
+        return yaw, pitch, roll;
+    }
+	
+	void TransformPSPCorners(Psprite psp, ZSAnimationFrame f)
+	{
+		let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
+		Vector2 sprSize = TexMan.GetScaledSize(texid);
+		
+		Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
+		Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
+		Vector3 corner2 = (sprSize.x/2, -sprSize.y/2, 0);
+		Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
+		Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 0);
+		
+		Quat qa = Quat.FromAngles(-f.angles.x, f.angles.y, f.angles.z);
+		Quat rolled1 = Quat.AxisAngle((0,0,1), 0);
+		Quat qr = qa * rolled1;
+		double yaw = f.angles.y, pitch = f.angles.z, roll = f.angles.x;
+		[yaw, pitch, roll] = QuatToEuler(qa);
+		
+		let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), yaw, pitch, roll, vecSc);
+		
+		Vector3 v0 = rotScMatrix.multiplyVector3(corner0);
+		Vector3 v1 = rotScMatrix.multiplyVector3(corner1);
+		Vector3 v2 = rotScMatrix.multiplyVector3(corner2);
+		Vector3 v3 = rotScMatrix.multiplyVector3(corner3);
+		
+		Vector3 diff0 = v0 - corner0;
+		Vector3 diff1 = v1 - corner1;
+		Vector3 diff2 = v2 - corner2;
+		Vector3 diff3 = v3 - corner3;
+		psp.coord0 = diff0.xy;
+		psp.coord1 = diff1.xy;
+		psp.coord2 = diff2.xy;
+		psp.coord3 = diff3.xy;
+	}
+	
 	void ApplyPSP(ZSanimation anim, ZSanimationFrame f)
 	{
 		let psp = ply.FindPSprite(f.pspId);
@@ -949,8 +1007,9 @@ Class ZSAnimator : Thinker
 				ang = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
 			}
 			
-			SetPSPScale(psp, sc);
-			SetPSPRotation(psp, ang);
+			// SetPSPScale(psp, sc);
+			// SetPSPRotation(psp, ang);
+			TransformPSPCorners(psp, f);
 			
 			LinkPSprite(anim, f, psp);
 		}
