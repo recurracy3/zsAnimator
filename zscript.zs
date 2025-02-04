@@ -57,6 +57,7 @@ class ZSAShotgun : Shotgun replaces Shotgun
 			ZSSG A 0 {
 				let anim = ZSAnimator.GetAnimationFromClassName("ZSAnimationShotgunFire");
 				anim.spritesLinked = true;
+				anim.SetFlags(ZSAnimator.LF_FlipX, random(0, 2) == 0);
 				// anim.flipanimx = true;
 				invoker.animator.StartAnimation(player, anim, playbackSpeed: 1.0);
 			}
@@ -179,6 +180,7 @@ class ZSAPistol : Pistol replaces Pistol
 		Fire:
 			SHIT B 0 {
 				let anim = ZSAnimator.GetAnimationFromClassName("ZSAnimationPistolFire");
+				anim.SetFlags(ZSAnimator.LF_FlipX, random(0, 2) == 0);
 				// anim.spritesLinked = true;
 				// anim.flipanimx = true;
 				invoker.animator.StartAnimation(player, anim, playbackSpeed: 1.0);

@@ -14,8 +14,6 @@ class ZSAnimationFrame
 	Vector2 pspOffsets;
 	Vector2 pspScale;
 	bool interpolate;
-	bool flipx;
-	bool flipy;
 	ZSAnimation anim;
 	string reference;
 	// ZSAnimationFrameNode node;
@@ -31,18 +29,17 @@ class ZSAnimationFrame
 		frame.angles = angles;
 		frame.pspOffsets = pspOffsets;
 		frame.pspScale = pspScale;
-		if (!layered)
-		{
-			if (frame.pspScale.x < 0)
-			{
-				frame.flipx = true;
-			}
-			if (frame.pspScale.y < 0)
-			{
-				frame.flipy = true;
-			}
-			frame.pspScale = (abs(frame.pspScale.X), abs(frame.pspScale.Y));
-		}
+		// if (!layered)
+		// {
+			// if (frame.pspScale.x < 0)
+			// {
+				// frame.flipx = true;
+			// }
+			// if (frame.pspScale.y < 0)
+			// {
+				// frame.flipy = true;
+			// }
+		// }
 		
 		frame.interpolate = interpolate;
 		frame.reference = reference;
@@ -68,8 +65,6 @@ class ZSAnimationFrame
 		f.pspOffsets = self.pspOffsets;
 		f.pspScale = self.pspScale;
 		f.interpolate = self.interpolate;
-		f.flipx = self.flipx;
-		f.flipy = self.flipy;
 		f.flags = self.flags;
 		f.reference = self.reference;
 		return f;
@@ -174,7 +169,6 @@ Class ZSAnimation
 	// ZSAnimationFrameNode lastNode;
 	bool spritesLinked;
 	int lastTickDiff;
-	bool flipAnimX, flipAnimY;
 	bool layered; // deprecated, does nothing
 	bool destroying;
 	// DO NOT change this. It's done by ZSAnimator itself.
@@ -187,6 +181,8 @@ Class ZSAnimation
 	// It's possible for animations to fall 'inbetween' tics defined by Zdoom, aka the default tic rate of 35/s, thanks to the variable framerate.
 	// When this happens we need to determine the positions, rotations and scale between the last frame and the current frame as a percentage.
 	double currentTicks;
+	
+	int flags;
 	
 	virtual void MakeFrameList() { }
 	virtual void Initialize() { }
@@ -227,19 +223,6 @@ Class ZSAnimation
 		references.Insert(key, val);
 	}
 	
-	void FlipLayer(int pspId, bool flipx = false, bool flipy = false)
-	{
-		for (int i = 0; i < frames.size(); i++)
-		{
-			let f = frames[i];
-			if (f.pspId == pspId)
-			{
-				f.flipx = flipx;
-				f.flipy = flipy;
-			}
-		}
-	}
-	
 	void SetLayerFlags(int pspId, int flags, bool set = true)
 	{
 		for (int i = 0; i < frames.size(); i++)
@@ -258,6 +241,17 @@ Class ZSAnimation
 				}
 			}
 		}
+	}
+	
+	void SetFlags(int newflags, bool set = true)
+	{
+		console.printf("self flags %d flags %d", self.flags, newflags);
+		if (set)
+			self.flags |= newflags;
+		else
+			self.flags &= ~newflags;
+			
+		console.printf("self flags %d flags %d", self.flags, newflags);
 	}
 	
 	/*bool GotoNextFrame()
@@ -433,12 +427,14 @@ Class ZSAnimation
 		// console.printf("psp %d tickPerc %f ticksA %f ticksB %f frameA %d frameB %d", layer, tickPerc, ticksA, ticksB, frameA.frameNum, frameB.frameNum);
 		
 		ret.interpolate = frameA.interpolate;
-		ret.flipy = frameA.flipy;
 		ret.flags = frameA.flags;
 		
 		Vector3 rot = (0,0,0);
 		Vector2 pos = (0,0);
 		Vector2 sc = (0,0);
+		
+		bool flipx = self.flags & ZSAnimator.LF_FlipX != 0;
+		console.printf("anim flags %d", self.flags);
 		
 		if ((frameA && frameB) && frameA != frameB)
 		{	
@@ -447,7 +443,7 @@ Class ZSAnimation
 				if ((frameA.flags & ZSAnimator.LF_AdditiveNoPSP) == 0)
 				{
 					let pspF = ZSAnimator.GetCurrentPspAsFrame(ply, layer);
-					pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(self.flipAnimX?1:-1), (pspF.pspOffsets.y-100.0)*-1);
+					pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(flipx?1:-1), (pspF.pspOffsets.y-100.0)*-1);
 					
 					let rotB = (framea.angles.x - pspF.angles.x,
 						framea.angles.y - pspF.angles.y,
@@ -641,6 +637,8 @@ Class ZSAnimator : Thinker
 		LF_Additive = 1 << 0, // When set, the offsets for this layer get added to the layer's current offset.
 		LF_AdditiveNoPSP = 1 << 1, // When used in conjunction with LF_Additive, ZSAnimator does not apply the current PSPrite offsets but purely uses the delta between frames.
 		LF_DontCenterPSP = 1 << 2, // When set, the PSPrite will not be centered automatically.
+		LF_FlipX = 1 << 3, // Can be applied to individual frames. If applied to animations, flip the animation rotations and positions.
+		LF_FlipY = 1 << 4 // Same as aboves
 	}
 	
 	//ZSAnimation currentAnimation;
@@ -942,12 +940,13 @@ Class ZSAnimator : Thinker
 	void ApplyPSP(ZSanimation anim, ZSanimationFrame f)
 	{
 		let psp = ply.FindPSprite(f.pspId);
+		bool flipx = (anim.flags & ZSAnimator.LF_FlipX) != 0;
 			
 		if (psp)
 		{
 			psp.bPivotPercent = true;
-			let xOffs = f.pspOffsets.x*(anim.flipAnimX ? 1 : -1);
-			let yOffs = f.pspOffsets.y*(anim.flipAnimY ? -1 : -1);//-WEAPONTOP;
+			let xOffs = f.pspOffsets.x*(flipx ? 1 : -1);
+			let yOffs = f.pspOffsets.y*-1;//-WEAPONTOP;
 			psp.bAddWeapon = false;
 			if (!psp.bAddWeapon)
 			{
@@ -996,21 +995,17 @@ Class ZSAnimator : Thinker
 			// }
 			psp.pivot = (0.5,0.5);
 			
+			if (flipx)
+			{
+				f.pspScale = (f.pspScale.x * -1, f.pspScale.y * 1);
+			}
+			
 			Vector2 sc;
 			Double ang;
 			if ((f.flags & ZSAnimator.LF_ADDITIVE) != 0)
 			{
 				sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
 				ang = psp.rotation + f.angles.x;
-			}
-			else
-			{
-				if (psp.bflip)
-				{
-					f.pspScale = (abs(f.pspScale.x), abs(f.pspScale.y));
-				}
-				sc = f.pspScale;
-				ang = f.angles.x * (f.flipy ? -1 : 1) + (f.flipy ? 180.0 : 0.0);
 			}
 			
 			// SetPSPScale(psp, sc);
@@ -1072,14 +1067,14 @@ Class ZSAnimator : Thinker
 		if (!animRef) { return; }
 		
 		Vector2 pos = f.pspOffsets;
-		if (anim.flipAnimX || f.flipx)
+		if ((anim.flags & ZSanimator.LF_FlipX) != 0)
 		{
 			pos = (pos.x * -1, pos.y);
 		}
 		animRef.animPos = pos;
 		
 		Vector3 ang = f.angles;
-		if (anim.flipAnimX || f.flipx)
+		if ((anim.flags & ZSAnimator.LF_FlipX) != 0)
 		{
 			ang = (ang.x * -1, ang.y, ang.z);
 		}
