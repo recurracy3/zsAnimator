@@ -6,6 +6,10 @@ version "4.12"
 #include "animations/sg_fire.zs"
 // #include "animations/zsa_shotgun.zs"
 #include "animations/sg_select.zs"
+
+#include "animations/pist_fire.zs"
+
+#include "animations/ssg_fire.zs"
 // #include "ssgfire.zs"
 // #include "shotgunfire.zs"
 
@@ -40,32 +44,154 @@ class ZSAShotgun : Shotgun replaces Shotgun
 	States
 	{
 		Ready:
-			SHTG A 1 A_ZSAWeaponReady();
+			ZSSG A 1 A_ZSAWeaponReady();
 			loop;
 		Select:
-			SHTG A 9 {
+			ZSSG A 9 {
 				let anim = ZSAnimator.GetAnimationFromClassName("ZSAnimationShotgunSelect");
 				anim.spritesLinked = true;
 				invoker.animator.StartAnimation(player, anim, playbackSpeed: 1.0);
 			}
 			goto Ready;
 		Fire:
-			SHTG A 0 {
+			ZSSG A 0 {
 				let anim = ZSAnimator.GetAnimationFromClassName("ZSAnimationShotgunFire");
 				anim.spritesLinked = true;
+				// anim.flipanimx = true;
 				invoker.animator.StartAnimation(player, anim, playbackSpeed: 1.0);
 			}
-			SHTG A 0 A_FireShotgun();
-			SHTG A 9;
-			SHTG BC 5;
-			SHTG D 4;
-			SHTG CB 4;
-			SHTG A 3;
-			SHTG A 7 A_Refire;
+			ZSSG A 0 A_FireShotgun();
+			ZSSG A 10;
+			ZSSG BC 5;
+			ZSSG D 4;
+			ZSSG CB 5;
+			ZSSG A 3;
+			ZSSG A 7 A_Refire;
 			goto Ready;	
 		Flash:
 			SHTF A 0 A_OverlayFlags(OverlayID(), PSPF_ADDWEAPON, false);
-			SHTF AB 1 bright;
+			ZSSG EF 1 bright;
+			stop;
+	}
+}
+
+class ZSASSG : SuperShotgun replaces SuperShotgun
+{
+	ZSAnimator animator;
+	
+	override void PostBeginPlay()
+	{
+		if (!animator)
+		{
+			animator = ZSAnimator(New("ZSAnimator"));
+		}
+	}
+	
+	action void A_ZSAWeaponReady(int flags = 0)
+	{
+		if (!player) return;
+														DoReadyWeaponToSwitch(player, !(flags & WRF_NoSwitch));
+		if ((flags & WRF_NoFire) != WRF_NoFire)			DoReadyWeaponToFire(player.mo, !(flags & WRF_NoPrimary), !(flags & WRF_NoSecondary));
+		//if (!(flags & WRF_NoBob))						DoReadyWeaponToBob(player);
+
+		player.WeaponState |= GetButtonStateFlags(flags);
+		DoReadyWeaponDisableSwitch(player, flags & WRF_DisableSwitch);
+	}
+	
+	Default
+	{
+		Weapon.SlotNumber 3;
+	}
+	
+	States
+	{
+		Ready:
+			ZSAG A 1 A_ZSAWeaponReady();
+			loop;
+		Select:
+			ZSAG A 9 {
+				let anim = ZSAnimator.GetAnimationFromClassName("ZSAnimationShotgunSelect");
+				anim.spritesLinked = true;
+				invoker.animator.StartAnimation(player, anim, playbackSpeed: 1.0);
+			}
+			goto Ready;
+		Fire:
+			ZSAG A 0 {
+				let anim = ZSAnimator.GetAnimationFromClassName("ZSAnimationSSGFire");
+				anim.spritesLinked = true;
+				// anim.flipanimx = true;
+				invoker.animator.StartAnimation(player, anim, playbackSpeed: 1.0);
+			}
+			ZSAG A 0 A_FireShotgun2();
+			ZSAG A 11;
+			ZSAG C 14;
+			ZSAG J 10 A_Overlay(PSP_WEAPON + 1, "LeftHand");
+			ZSAG E 6;
+			ZSAG C 9;
+			goto Ready;	
+		Flash:
+			SHTF A 0 A_OverlayFlags(OverlayID(), PSPF_ADDWEAPON, false);
+			ZSAG HI 1 bright;
+			stop;
+	}
+}
+
+class ZSAPistol : Pistol replaces Pistol
+{
+	ZSAnimator animator;
+	
+	override void PostBeginPlay()
+	{
+		if (!animator)
+		{
+			animator = ZSAnimator(New("ZSAnimator"));
+		}
+	}
+	
+	action void A_ZSAWeaponReady(int flags = 0)
+	{
+		if (!player) return;
+														DoReadyWeaponToSwitch(player, !(flags & WRF_NoSwitch));
+		if ((flags & WRF_NoFire) != WRF_NoFire)			DoReadyWeaponToFire(player.mo, !(flags & WRF_NoPrimary), !(flags & WRF_NoSecondary));
+		//if (!(flags & WRF_NoBob))						DoReadyWeaponToBob(player);
+
+		player.WeaponState |= GetButtonStateFlags(flags);
+		DoReadyWeaponDisableSwitch(player, flags & WRF_DisableSwitch);
+	}
+	
+	Default
+	{
+		Weapon.SlotNumber 2;
+	}
+	
+	States
+	{
+		Ready:
+			SHIT B 1 A_ZSAWeaponReady();
+			loop;
+		Select:
+			SHIT B 9 {
+				let anim = ZSAnimator.GetAnimationFromClassName("ZSAnimationShotgunSelect");
+				anim.spritesLinked = true;
+				invoker.animator.StartAnimation(player, anim, playbackSpeed: 1.0);
+			}
+			goto Ready;
+		Fire:
+			SHIT B 0 {
+				let anim = ZSAnimator.GetAnimationFromClassName("ZSAnimationPistolFire");
+				// anim.spritesLinked = true;
+				// anim.flipanimx = true;
+				invoker.animator.StartAnimation(player, anim, playbackSpeed: 1.0);
+			}
+			SHIT B 0 A_FirePistol;	
+			SHIT D 1;
+			SHIT E 3;
+			SHIT D 2;
+			SHIT B 4;
+			goto Ready;	
+		Flash:
+			SHTF A 0 A_OverlayFlags(OverlayID(), PSPF_ADDWEAPON, false);
+			SHIT F 1 bright;
 			stop;
 	}
 }
