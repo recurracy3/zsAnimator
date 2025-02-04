@@ -245,13 +245,11 @@ Class ZSAnimation
 	
 	void SetFlags(int newflags, bool set = true)
 	{
-		console.printf("self flags %d flags %d", self.flags, newflags);
 		if (set)
 			self.flags |= newflags;
 		else
 			self.flags &= ~newflags;
 			
-		console.printf("self flags %d flags %d", self.flags, newflags);
 	}
 	
 	/*bool GotoNextFrame()
@@ -434,7 +432,6 @@ Class ZSAnimation
 		Vector2 sc = (0,0);
 		
 		bool flipx = self.flags & ZSAnimator.LF_FlipX != 0;
-		console.printf("anim flags %d", self.flags);
 		
 		if ((frameA && frameB) && frameA != frameB)
 		{	
@@ -905,8 +902,6 @@ Class ZSAnimator : Thinker
 		// [w, h] = TexMan.GetSize(texid);
 		// Vector2 sprsize = (w, h);
 		Vector2 sprsize = TexMan.GetscaledSize(texid);
-		console.printf("sprsize %.2f %.2f", sprsize.x, sprsize.y);
-		console.printf("scale %.2f %.2f", f.pspScale.x, f.pspScale.y);
 		
 		Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
 		Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
@@ -955,7 +950,6 @@ Class ZSAnimator : Thinker
 			}
 			
 			psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
-			console.printf("interp %d", psp.bInterpolate);
 			
 			double x, y;
 			
