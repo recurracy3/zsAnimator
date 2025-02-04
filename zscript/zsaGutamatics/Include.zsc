@@ -1,0 +1,8 @@
+#include "zsaGutamatics/GlobalMaths.zsc"
+#include "zsaGutamatics/Matrix.zsc"
+#include "zsaGutamatics/Matrix3.zsc"
+#include "zsaGutamatics/Matrix4.zsc"
+#include "zsaGutamatics/Quaternion.zsc"
+#include "zsaGutamatics/VectorUtil.zsc"
+#include "zsaGutamatics/HashMap.zsc"
+#include "zsaGutamatics/Constraints.zsc"

@@ -1,0 +1,435 @@
+class zsaGMMatrix3 {
+	zsaGMMatrix3S mat;
+
+	/// Initialises a new Matrix3 in a static context.
+	static zsaGMMatrix3 create() {
+		return new("zsaGMMatrix3");
+	}
+
+	/// Returns an identity matrix.
+	static zsaGMMatrix3 identity() {
+		let ret = zsaGMMatrix3.create();
+		zsaGMMatrix3S.identity(ret.mat);
+		return ret;
+	}
+
+	/// Returns a rotation matrix.
+	static zsaGMMatrix3 rotate(double angle) {
+		let ret = zsaGMMatrix3.create();
+		zsaGMMatrix3S.rotate(angle, ret.mat);
+		return ret;
+	}
+
+	/// Returns a translation matrix.
+	static zsaGMMatrix3 translate(Vector2 translate) {
+		let ret = zsaGMMatrix3.create();
+		zsaGMMatrix3S.translate(translate, ret.mat);
+		return ret;
+	}
+
+	/// Returns a scaling matrix.
+	static zsaGMMatrix3 scale(Vector2 scale) {
+		let ret = zsaGMMatrix3.create();
+		zsaGMMatrix3S.scale(scale, ret.mat);
+		return ret;
+	}
+
+	static zsaGMMatrix3 createTRS(Vector2 translate, double angle, Vector2 scale) {
+		let ret = zsaGMMatrix3.create();
+		zsaGMMatrix3S.createTRS(translate, angle, scale, ret.mat);
+		return ret;
+	}
+
+	zsaGMMatrix3 clone() const {
+		let ret = zsaGMMatrix3.create();
+		self.mat.cloneTo(ret.mat);
+		return ret;
+	}
+
+	zsaGMMatrix3 transpose() const {
+		let ret = zsaGMMatrix3.create();
+		self.mat.transpose(ret.mat);
+		return ret;
+	}
+
+	/// Adds two matrices and returns the result.
+	zsaGMMatrix3 addMatrix(zsaGMMatrix3 other) const {
+		zsaGMMatrix3 ret = zsaGMMatrix3.create();
+		self.mat.addMatrix(other.mat, ret.mat);
+		return ret;
+	}
+
+	/// Multiplies the matrix by a scalar and returns the result.
+	zsaGMMatrix3 multiplyScalar(double scalar) const {
+		zsaGMMatrix3 ret = zsaGMMatrix3.create();
+		self.mat.multiplyScalar(scalar, ret.mat);
+		return ret;
+	}
+
+	/// Multiplies two matrices and returns the result.
+	zsaGMMatrix3 multiplyMatrix(zsaGMMatrix3 other) const {
+		zsaGMMatrix3 ret = zsaGMMatrix3.create();
+		self.mat.multiplyMatrix(other.mat, ret.mat);
+		return ret;
+	}
+
+	/// Multiplies two matrices and returns the result, implicitly transposing the latter.
+	zsaGMMatrix3 multiplyTranspose(zsaGMMatrix3 other) const {
+		zsaGMMatrix3 ret = zsaGMMatrix3.create();
+		self.mat.multiplyTranspose(other.mat, ret.mat);
+		return ret;
+	}
+
+	/// Multiplies this Matrix by a 3D vector.
+	Vector3 multiplyVector3(Vector3 vec) const {
+		return self.mat.multiplyVector3(vec);
+	}
+
+	/// Multiplies this Matrix by a 2D vector.
+	Vector2 multiplyVector2(Vector2 vec, zsaGMVectorType type = zsaGMVector_Position, bool divideZ = true) const {
+		return self.mat.multiplyVector2(vec, type, divideZ);
+	}
+
+	void swapEntries(int r0, int c0, int r1, int c1) {
+		self.mat.swapEntries(r0, c0, r1, c1);
+	}
+
+	void swapRows(int row0, int row1) {
+		self.mat.swapRows(row0, row1);
+	}
+
+	zsaGMMatrix3 inverse() const {
+		let ret = zsaGMMatrix3.create();
+		self.mat.inverse(ret.mat);
+		return ret;
+	}
+
+	String repr() const {
+		return self.mat.repr();
+	}
+
+	void toTransformInPlace(Shape2DTransform t) {
+		self.mat.toTransformInPlace(t);
+	}
+
+	Shape2DTransform toTransform() {
+		return self.mat.toTransform();
+	}
+}
+
+struct zsaGMMatrix3S {
+	const ROWS = 3;
+	const COLUMNS = 3;
+
+	double values[ROWS][COLUMNS];
+
+	/// Returns a zero matrix.
+	static void create(zsaGMMatrix3S ret) {
+		for (let r = 0; r < ROWS; r++) {
+			for (let c = 0; c < COLUMNS; c++) {
+				ret.values[r][c] = 0;
+			}
+		}
+	}
+
+	/// Returns an identity matrix.
+	static void identity(zsaGMMatrix3S ret) {
+		ret.values[0][0] = 1;
+		ret.values[0][1] = 0;
+		ret.values[0][2] = 0;
+
+		ret.values[1][0] = 0;
+		ret.values[1][1] = 1;
+		ret.values[1][2] = 0;
+
+		ret.values[2][0] = 0;
+		ret.values[2][1] = 0;
+		ret.values[2][2] = 1;
+	}
+
+	/// Returns a rotation matrix.
+	static void rotate(double angle, zsaGMMatrix3S ret) {
+		identity(ret);
+		double s = sin(angle);
+		double c = cos(angle);
+
+		ret.values[0][0] = c;
+		ret.values[0][1] = -s;
+
+		ret.values[1][0] = s;
+		ret.values[1][1] = c;
+	}
+
+	/// Returns a translation matrix.
+	static void translate(Vector2 translate, zsaGMMatrix3S ret) {
+		identity(ret);
+		ret.values[0][2] = translate.x;
+		ret.values[1][2] = translate.y;
+	}
+
+	/// Returns a scaling matrix.
+	static void scale(Vector2 scale, zsaGMMatrix3S ret) {
+		create(ret);
+		ret.values[0][0] = scale.x;
+		ret.values[1][1] = scale.y;
+		ret.values[2][2] = 1.0;
+	}
+
+	static void createTRS(Vector2 translate, double angle, Vector2 scale, zsaGMMatrix3S ret) {
+		zsaGMMatrix3S translateMat; identity(translateMat);
+		translateMat.values[0][2] = translate.x;
+		translateMat.values[1][2] = translate.y;
+
+		zsaGMMatrix3S rotateMat; rotate(angle, rotateMat);
+
+		zsaGMMatrix3S scaleMat; identity(scaleMat);
+		scaleMat.values[0][0] = scale.x;
+		scaleMat.values[1][1] = scale.y;
+
+		zsaGMMatrix3S tmp; translateMat.multiplyMatrix(rotateMat, tmp);
+		tmp.multiplyMatrix(scaleMat, ret);
+	}
+
+	void cloneTo(zsaGMMatrix3S ret) const {
+		for (int r = 0; r < ROWS; r++) {
+			for (int c = 0; c < COLUMNS; c++) {
+				ret.values[r][c] = self.values[r][c];
+			}
+		}
+	}
+
+	void transpose(zsaGMMatrix3S ret) const {
+		for (int r = 0; r < ROWS; r++) {
+			for (int c = 0; c < COLUMNS; c++) {
+				ret.values[r][c] = self.values[c][r];
+			}
+		}
+	}
+
+	/// Adds two matrices and returns the result.
+	void addMatrix(zsaGMMatrix3S other, zsaGMMatrix3S ret) const {
+		ret.values[0][0] = self.values[0][0] + other.values[0][0];
+		ret.values[0][1] = self.values[0][1] + other.values[0][1];
+		ret.values[0][2] = self.values[0][2] + other.values[0][2];
+
+		ret.values[1][0] = self.values[1][0] + other.values[1][0];
+		ret.values[1][1] = self.values[1][1] + other.values[1][1];
+		ret.values[1][2] = self.values[1][2] + other.values[1][2];
+
+		ret.values[2][0] = self.values[2][0] + other.values[2][0];
+		ret.values[2][1] = self.values[2][1] + other.values[2][1];
+		ret.values[2][2] = self.values[2][2] + other.values[2][2];
+	}
+
+	/// Multiplies the matrix by a scalar and returns the result.
+	void multiplyScalar(double scalar, zsaGMMatrix3S ret) const {
+		ret.values[0][0] = self.values[0][0] * scalar;
+		ret.values[0][1] = self.values[0][1] * scalar;
+		ret.values[0][2] = self.values[0][2] * scalar;
+
+		ret.values[1][0] = self.values[1][0] * scalar;
+		ret.values[1][1] = self.values[1][1] * scalar;
+		ret.values[1][2] = self.values[1][2] * scalar;
+
+		ret.values[2][0] = self.values[2][0] * scalar;
+		ret.values[2][1] = self.values[2][1] * scalar;
+		ret.values[2][2] = self.values[2][2] * scalar;
+	}
+
+	/// Multiplies two matrices and returns the result.
+	void multiplyMatrix(zsaGMMatrix3S other, zsaGMMatrix3S ret) const {
+		for (int row = 0; row < ROWS; row++) {
+			ret.values[row][0] =
+				self.values[row][0] * other.values[0][0] +
+				self.values[row][1] * other.values[1][0] +
+				self.values[row][2] * other.values[2][0];
+
+			ret.values[row][1] =
+				self.values[row][0] * other.values[0][1] +
+				self.values[row][1] * other.values[1][1] +
+				self.values[row][2] * other.values[2][1];
+
+			ret.values[row][2] =
+				self.values[row][0] * other.values[0][2] +
+				self.values[row][1] * other.values[1][2] +
+				self.values[row][2] * other.values[2][2];
+		}
+	}
+
+	/// Multiplies two matrices and returns the result, implicitly transposing the latter.
+	void multiplyTranspose(zsaGMMatrix3S other, zsaGMMatrix3S ret) const {
+		for (int row = 0; row < ROWS; row++) {
+			ret.values[row][0] =
+				self.values[row][0] * other.values[0][0] +
+				self.values[row][1] * other.values[0][1] +
+				self.values[row][2] * other.values[0][2];
+
+			ret.values[row][1] =
+				self.values[row][0] * other.values[1][0] +
+				self.values[row][1] * other.values[1][1] +
+				self.values[row][2] * other.values[1][2];
+
+			ret.values[row][2] =
+				self.values[row][0] * other.values[2][0] +
+				self.values[row][1] * other.values[2][1] +
+				self.values[row][2] * other.values[2][2];
+		}
+	}
+
+	/// Multiplies this Matrix by a 3D vector.
+	Vector3 multiplyVector3(Vector3 vec) const {
+		let ret = (
+			values[0][0] * vec.x + values[0][1] * vec.y + values[0][2] * vec.z,
+			values[1][0] * vec.x + values[1][1] * vec.y + values[1][2] * vec.z,
+			values[2][0] * vec.x + values[2][1] * vec.y + values[2][2] * vec.z
+		);
+
+		return ret;
+	}
+
+	/// Multiplies this Matrix by a 2D vector.
+	Vector2 multiplyVector2(Vector2 vec, zsaGMVectorType type = zsaGMVector_Position, bool divideZ = true) const {
+		let vecZ = (type == zsaGMVector_Position) ? 1.0 : 0.0;
+
+		let ret = (
+			values[0][0] * vec.x + values[0][1] * vec.y + values[0][2] * vecZ,
+			values[1][0] * vec.x + values[1][1] * vec.y + values[1][2] * vecZ
+		);
+
+		if (divideZ) {
+			let retZ  = values[2][0] * vec.x + values[2][1] * vec.y + values[2][2] * vecZ;
+			ret /= retZ;
+		}
+
+		return ret;
+	}
+
+	void swapEntries(int r0, int c0, int r1, int c1) {
+		let tmp = self.values[r0][c0];
+		self.values[r0][c0] = self.values[r1][c1];
+		self.values[r1][c1] = tmp;
+	}
+
+	void swapRows(int row0, int row1) {
+		for (int i = 0; i < ROWS; i++) {
+			self.swapEntries(row0, i, row1, i);
+		}
+	}
+
+	void inverse(zsaGMMatrix3S ret) const {
+		let n = ROWS;
+		zsaGMMatrix3S lhs; self.cloneTo(lhs);
+		identity(ret);
+		for (int p = 0; p < n; p++) {
+			let largestNum = abs(lhs.values[p][p]);
+			let largestRow = p;
+			for (int r = p + 1; r < n; r++) {
+				let test = abs(lhs.values[r][p]);
+				if (test > largestNum) {
+					largestNum = test;
+					largestRow = r;
+				}
+			}
+			lhs.swapRows(p, largestRow);
+			ret.swapRows(p, largestRow);
+
+			let pivot = lhs.values[p][p];
+			let mul = 1.0 / pivot;
+
+			for (int i = 0; i < n; i++) {
+				lhs.values[p][i] = lhs.values[p][i] * mul;
+				ret.values[p][i] = ret.values[p][i] * mul;
+			}
+
+			for (int r = 0; r < n; r++) {
+				if (r == p) {
+					continue;
+				}
+				let mul = lhs.values[r][p];
+				for (int i = 0; i < n; i++) {
+					lhs.values[r][i] = lhs.values[r][i] - mul * lhs.values[p][i];
+					ret.values[r][i] = ret.values[r][i] - mul * ret.values[p][i];
+				}
+			}
+		}
+	}
+
+	String repr() const {
+		let scientific = false;
+		for (let i = 0; i < ROWS * COLUMNS; i++) {
+			let val = self.values[i / COLUMNS][i % COLUMNS];
+			scientific |= (abs(zsaGMGlobalMaths.getDoubleExponent(val)) > 4);
+			if (scientific) {
+				break;
+			}
+		}
+		Array<String> strs;
+		for (let i = 0; i < ROWS * COLUMNS; i++) {
+			let val = self.values[i / COLUMNS][i % COLUMNS];
+			let str = scientific ? String.format("%e", val) : String.format("%g", val);
+			if (!scientific && val != double.infinity && val == val && str.indexOf(".") == -1) {
+				str.appendFormat(".0");
+			}
+			strs.push(str);
+		}
+		Array<uint> pointIndices;
+		let maxPointIndex = 0;
+		for (let i = 0; i < ROWS * COLUMNS; i++) {
+			let str = strs[i];
+			let pointIndex = str.indexOf(".");
+			if (pointIndex == -1) {
+				pointIndex = 0;
+			}
+			pointIndices.push(pointIndex);
+			maxPointIndex = max(maxPointIndex, str.indexOf("."));
+		}
+		for (let i = 0; i < ROWS * COLUMNS; i++) {
+			let str = strs[i];
+			strs[i] = String.format(
+				"% " .. str.length() + (maxPointIndex - pointIndices[i]) .. "s",
+				str
+			);
+		}
+		let maxLength = 0;
+		for (let i = 0; i < self.values.size(); i++) {
+			let str = strs[i];
+			maxLength = max(maxLength, str.length());
+		}
+
+		String ret = "";
+		let fmt = "%-" .. maxLength .. "s";
+		for (let r = 0u; r < ROWS; r++) {
+			ret.appendFormat(r == 0 ? "[[ " : "\n [ ");
+			for (let c = 0u; c < COLUMNS; c++) {
+				ret.appendFormat(fmt, strs[COLUMNS * r + c]);
+				if (c != COLUMNS - 1) {
+					ret.appendFormat(", ");
+				}
+			}
+			ret.appendFormat(" ]");
+			if (r != ROWS - 1) {
+				ret.appendFormat(",");
+			}
+		}
+		ret.appendFormat("]");
+		return ret;
+	}
+
+	void toTransformInPlace(Shape2DTransform t) {
+		t.from2D(
+			self.values[0][0],
+			self.values[0][1],
+			self.values[1][0],
+			self.values[1][1],
+
+			self.values[0][2],
+			self.values[1][2]
+		);
+	}
+
+	Shape2DTransform toTransform() {
+		let s = new("Shape2DTransform");
+		self.toTransformInPlace(s);
+		return s;
+	}
+}

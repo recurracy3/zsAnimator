@@ -1,5 +1,7 @@
 version "4.12"
 
+#include "zscript/zsaGutamatics/Include.zsc"
+
 #include "zsanimator.zs"
 #include "animations/sg_fire.zs"
 // #include "animations/zsa_shotgun.zs"

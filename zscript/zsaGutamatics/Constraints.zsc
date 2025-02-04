@@ -1,0 +1,1214 @@
+class zsaGMVariable {
+	private uint id;
+
+	static zsaGMVariable internalCreate(uint curId) {
+		let ret = new();
+		ret.id = curId;
+		return ret;
+	}
+
+	uint getId() { return self.id; }
+}
+class zsaGMVariableHasher : zsaGMHasher {
+	override uint hash(Object o) { return zsaGMVariable(o).getId(); }
+	override bool eq(Object o0, Object o1) {
+		return zsaGMVariable(o0).getId() == zsaGMVariable(o1).getId();
+	}
+}
+
+struct zsaGMVariableManager {
+	private uint curId;
+
+	zsaGMVariable createVariable() {
+		let ret = zsaGMVariable.internalCreate(self.curId);
+		self.curId += 1;
+		return ret;
+	}
+}
+
+class zsaGMTerm {
+	zsaGMVariable variable;
+	double coefficient;
+
+	static zsaGMTerm create(zsaGMVariable variable, double coefficient) {
+		let ret = new();
+		ret.variable = variable;
+		ret.coefficient = coefficient;
+		return ret;
+	}
+}
+
+class zsaGMExpr {
+	Array<zsaGMTerm> terms;
+	double constant;
+
+	static zsaGMExpr fromConstant(double v) {
+		let ret = new();
+		ret.constant = v;
+		return ret;
+	}
+	static zsaGMExpr c(double v) { return zsaGMExpr.fromConstant(v); }
+
+	static zsaGMExpr fromTerm(zsaGMTerm term) {
+		let ret = new();
+		ret.terms.push(term);
+		return ret;
+	}
+
+	static zsaGMExpr fromVariable(zsaGMVariable variable) {
+		let ret = new();
+		ret.terms.push(zsaGMTerm.create(variable, 1.0));
+		return ret;
+	}
+	static zsaGMExpr v(zsaGMVariable variable) { return zsaGMExpr.fromVariable(variable); }
+
+	static zsaGMExpr create() {
+		let ret = new();
+		return ret;
+	}
+
+	void negate() {
+		self.constant = -self.constant;
+		for (let i = 0; i < self.terms.size(); i++) {
+			let t = self.terms[i];
+			t.coefficient = -t.coefficient;
+		}
+	}
+
+	zsaGMExpr addAssignVariable(zsaGMVariable variable, double coefficient = 1.0) {
+		self.terms.push(zsaGMTerm.create(variable, coefficient));
+		return self;
+	}
+	zsaGMExpr addAssignConstant(double constant) {
+		self.constant += constant;
+		return self;
+	}
+	zsaGMExpr addAssignExpression(zsaGMExpr e) {
+		for (let i = 0; i < e.terms.size(); i++) {
+			self.terms.push(e.terms[i]);
+		}
+		self.constant += e.constant;
+		return self;
+	}
+	zsaGMExpr mulAssign(double coeff) {
+		for (let i = 0; i < self.terms.size(); i++) {
+			self.terms[i].coefficient *= coeff;
+		}
+		self.constant *= coeff;
+		return self;
+	}
+}
+
+struct zsaGMStrength {
+	static double create(double a, double b, double c, double w) {
+		return
+			clamp(a * w, 0.0, 1000.0) * 1000000.0 +
+			clamp(b * w, 0.0, 1000.0) * 1000.0 +
+			clamp(c * w, 0.0, 1000.0);
+	}
+
+	const REQUIRED = 1001001000.0;
+	const STRONG = 1000000.0;
+	const MEDIUM = 1000.0;
+	const WEAK = 1.0;
+
+	static double clip(double s) {
+		return clamp(s, 0.0, REQUIRED);
+	}
+}
+
+enum zsaGMRel {
+	zsaGMRel_LEq,
+	zsaGMRel_Eq,
+	zsaGMRel_GEq,
+}
+
+struct zsaGMConstraintManager {
+	private uint curId;
+
+	zsaGMConstraint createConstraint(zsaGMExpr e, zsaGMRel op, double strength) {
+		let ret = zsaGMConstraint.internalCreate(e, op, strength, self.curId);
+		self.curId += 1;
+		return ret;
+	}
+}
+
+class zsaGMConstraint {
+	private zsaGMExpr expression;
+	private double strength;
+	private zsaGMRel op;
+	private uint id;
+
+	static zsaGMConstraint internalCreate(zsaGMExpr e, zsaGMRel op, double strength, uint curId) {
+		let ret = new();
+		ret.expression = e;
+		ret.op = op;
+		ret.strength = strength;
+		ret.id = curId;
+		return ret;
+	}
+
+	zsaGMExpr getExpr() { return self.expression; }
+	zsaGMRel getOp() { return self.op; }
+	double getStrength() { return self.strength; }
+	uint getId() { return self.id; }
+}
+class zsaGMConstraintHasher : zsaGMHasher {
+	override uint hash(Object o) { return zsaGMConstraint(o).getId(); }
+	override bool eq(Object o0, Object o1) {
+		return zsaGMConstraint(o0).getId() == zsaGMConstraint(o1).getId();
+	}
+}
+
+class zsaGMConstraintBuilderWithRhs {
+	zsaGMExpr lhs;
+	zsaGMExpr rhs;
+	zsaGMRel rel;
+	double strength;
+}
+
+enum zsaGMSymbolKind {
+	zsaGMSymbolKind_Invalid,
+	zsaGMSymbolKind_External,
+	zsaGMSymbolKind_Slack,
+	zsaGMSymbolKind_Error,
+	zsaGMSymbolKind_Dummy,
+}
+
+class zsaGMSymbol {
+	uint id;
+	zsaGMSymbolKind kind;
+
+	static zsaGMSymbol invalid() {
+		let ret = new();
+		ret.id = 0;
+		ret.kind = zsaGMSymbolKind_Invalid;
+		return ret;
+	}
+
+	static zsaGMSymbol create(uint id, zsaGMSymbolKind kind) {
+		let ret = new();
+		ret.id = id;
+		ret.kind = kind;
+		return ret;
+	}
+
+	zsaGMSymbol clone() {
+		let ret = new();
+		ret.id = self.id;
+		ret.kind = self.kind;
+		return ret;
+	}
+
+	String repr() {
+		let ret = "Symbol(";
+		ret.appendFormat("%d, ", self.id);
+		switch (self.kind) {
+			case zsaGMSymbolKind_Invalid:  ret.appendFormat("Invalid"); break;
+			case zsaGMSymbolKind_External: ret.appendFormat("External"); break;
+			case zsaGMSymbolKind_Slack:    ret.appendFormat("Slack"); break;
+			case zsaGMSymbolKind_Error:    ret.appendFormat("Error"); break;
+			case zsaGMSymbolKind_Dummy:    ret.appendFormat("Dummy"); break;
+		}
+		ret.appendFormat(")");
+		return ret;
+	}
+}
+
+class zsaGMSymbolHasher : zsaGMHasher {
+	override uint hash(Object o) {
+		let o = zsaGMSymbol(o);
+		let seed = o.id;
+		hashCombine(seed, o.kind);
+		return seed;
+	}
+	override bool eq(Object o0, Object o1) {
+		let o0 = zsaGMSymbol(o0);
+		let o1 = zsaGMSymbol(o1);
+
+		return
+			o0.id == o1.id &&
+			o0.kind == o1.kind;
+	}
+}
+
+class zsaGMRow {
+	zsaGMHashMap/*<Symbol, BoxedDouble>*/ cells;
+	double constant;
+
+	static zsaGMRow create(double constant) {
+		let ret = new();
+		ret.cells = zsaGMHashMap.create(new("zsaGMSymbolHasher"));
+		ret.constant = constant;
+		return ret;
+	}
+
+	zsaGMRow clone() {
+		let ret = new();
+		ret.cells = zsaGMHashMap.create(new("zsaGMSymbolHasher"));
+		let iter = self.cells.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let k = zsaGMSymbol(ko);
+			let v = zsaGMBoxedDouble(vo);
+
+			ret.cells.insert(k.clone(), v.clone());
+		}
+		ret.constant = self.constant;
+		return ret;
+	}
+
+	double add(double v) {
+		self.constant += v;
+		return self.constant;
+	}
+
+	void insertSymbol(zsaGMSymbol s, double coefficient) {
+		let g = self.cells.get(s);
+		if (g is "zsaGMHashUnoccupied") {
+			if (!zsaGMGlobalMaths.nearZero(coefficient)) {
+				self.cells.insert(s, zsaGMBoxedDouble.create(coefficient));
+			}
+		} else {
+			let g = zsaGMBoxedDouble(g);
+			g.val += coefficient;
+			if (zsaGMGlobalMaths.nearZero(g.val)) {
+				self.cells.remove(s);
+			}
+		}
+	}
+
+	bool insertRow(zsaGMRow other, double coefficient) {
+		let constantDiff = other.constant * coefficient;
+		self.constant += constantDiff;
+		let iter = other.cells.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let s = zsaGMSymbol(ko);
+			let v = zsaGMBoxedDouble(vo).val;
+
+			self.insertSymbol(s, v * coefficient);
+		}
+		return constantDiff != 0.0;
+	}
+
+	void remove(zsaGMSymbol s) {
+		self.cells.remove(s);
+	}
+
+	void reverseSign() {
+		self.constant = -self.constant;
+		let iter = self.cells.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+			let v = zsaGMBoxedDouble(vo);
+			v.val = -v.val;
+		}
+	}
+
+	void solveForSymbol(zsaGMSymbol s) {
+		let e = zsaGMBoxedDouble(self.cells.remove(s)).val;
+		let coeff = -1.0 / e;
+		self.constant *= coeff;
+		let iter = self.cells.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+			let v = zsaGMBoxedDouble(vo);
+			v.val *= coeff;
+		}
+	}
+
+	void solveForSymbols(zsaGMSymbol lhs, zsaGMSymbol rhs) {
+		self.insertSymbol(lhs, -1.0);
+		self.solveForSymbol(rhs);
+	}
+
+	double coefficientFor(zsaGMSymbol s) {
+		let v = self.cells.get(s);
+		return (!(v is "zsaGMHashUnoccupied")) ? zsaGMBoxedDouble(v).val : 0.0;
+	}
+
+	bool substitute(zsaGMSymbol s, zsaGMRow row) {
+		let e = self.cells.remove(s);
+		if (!(e is "zsaGMHashUnoccupied")) {
+			let coeff = zsaGMBoxedDouble(e).val;
+			return self.insertRow(row, coeff);
+		} else {
+			return false;
+		}
+	}
+}
+
+enum zsaGMAddConstraintError {
+	zsaGMAddConstraintError_None,
+	zsaGMAddConstraintError_DuplicateConstraint,
+	zsaGMAddConstraintError_UnsatisfiableConstraint,
+}
+
+enum zsaGMRemoveConstraintError {
+	zsaGMRemoveConstraintError_None,
+	zsaGMRemoveConstraintError_UnknownConstraint,
+}
+
+enum zsaGMAddEditVariableError {
+	zsaGMAddEditVariableError_None,
+	zsaGMAddEditVariableError_DuplicateEditVariable,
+	zsaGMAddEditVariableError_BadRequiredStrength,
+}
+
+enum zsaGMRemoveEditVariableError {
+	zsaGMRemoveEditVariableError_None,
+	zsaGMRemoveEditVariableError_UnknownEditVariable,
+}
+
+enum zsaGMSuggestValueError {
+	zsaGMSuggestValueError_None,
+	zsaGMSuggestValueError_UnknownEditVariable,
+}
+
+class zsaGMTag {
+	zsaGMSymbol marker;
+	zsaGMSymbol other;
+
+	static zsaGMTag create(zsaGMSymbol marker = NULL, zsaGMSymbol other = NULL) {
+		let ret = new();
+		ret.marker = marker;
+		ret.other = other;
+		return ret;
+	}
+}
+
+class zsaGMEditInfo {
+	zsaGMTag tag;
+	zsaGMConstraint constraint;
+	double constant;
+
+	static zsaGMEditInfo create(zsaGMTag tag, zsaGMConstraint constraint, double constant) {
+		let ret = new();
+		ret.tag = tag;
+		ret.constraint = constraint;
+		ret.constant = constant;
+		return ret;
+	}
+}
+
+class zsaGMVarDataEntry {
+	double value;
+	zsaGMSymbol symbol;
+	uint count;
+
+	static zsaGMVarDataEntry create(double value, zsaGMSymbol symbol, uint count) {
+		let ret = new();
+		ret.value = value;
+		ret.symbol = symbol;
+		ret.count = count;
+		return ret;
+	}
+}
+
+class zsaGMPublicChangesEntry {
+	zsaGMVariable variable;
+	double value;
+
+	static zsaGMPublicChangesEntry create(zsaGMVariable variable, double value) {
+		let ret = new();
+		ret.variable = variable;
+		ret.value = value;
+		return ret;
+	}
+}
+
+class zsaGMSolver {
+	private zsaGMHashMap/*<Constraint, Tag>*/ cns;
+	private zsaGMHashMap/*<Variable, VarDataEntry>*/ varData;
+	private zsaGMHashMap/*<Symbol, Variable>*/ varForSymbol;
+	private Array<zsaGMPublicChangesEntry> publicChanges;
+	private zsaGMHashSet/*<Variable>*/ changed;
+	private bool shouldClearChanges;
+	private zsaGMHashMap/*<Symbol, Row>*/ rows;
+	private zsaGMHashMap/*<Variable, EditInfo>*/ edits;
+	private Array<zsaGMSymbol> infeasibleRows;
+	private zsaGMRow objective;
+	private /* Nullable */ zsaGMRow artificial;
+	private uint idTick;
+
+	private zsaGMVariableManager variableManager;
+	zsaGMConstraintManager constraintManager;
+
+	static zsaGMSolver create() {
+		let constraintHasher = new("zsaGMConstraintHasher");
+		let variableHasher = new("zsaGMVariableHasher");
+		let symbolHasher = new("zsaGMSymbolHasher");
+
+		let ret = new();
+		ret.cns = zsaGMHashMap.create(constraintHasher);
+		ret.varData = zsaGMHashMap.create(variableHasher);
+		ret.varForSymbol = zsaGMHashMap.create(symbolHasher);
+		/* ret.publicChanges = default; */
+		ret.changed = zsaGMHashSet.create(variableHasher);
+		ret.shouldClearChanges = false;
+		ret.rows = zsaGMHashMap.create(symbolHasher);
+		ret.edits = zsaGMHashMap.create(variableHasher);
+		/* ret.infeasibleRows = default; */
+		ret.objective = zsaGMRow.create(0.0);
+		ret.artificial = NULL;
+		ret.idTick = 1;
+
+		return ret;
+	}
+
+	zsaGMVariable createVariable() {
+		return self.variableManager.createVariable();
+	}
+
+	static void assertNoErr(int errcode) {
+		if (errcode != 0) { throwAbortException("err %d", errcode); }
+	}
+
+	zsaGMAddConstraintError, zsaGMConstraint addConstraintFromRelation(
+		zsaGMExpr lhs,
+		Name op,
+		zsaGMExpr rhs,
+		double strength = zsaGMStrength.REQUIRED
+	) {
+		rhs.negate();
+		lhs.addAssignExpression(rhs);
+		if (op != '==' && op != '<=' && op != '>=') {
+			throwAbortException("invalid op string '%s'", op);
+		}
+		let op = (op == '==') ? zsaGMRel_Eq : (op == '<=') ? zsaGMRel_Leq : zsaGMRel_Geq;
+		let constraint = self.constraintManager.createConstraint(lhs, op, strength);
+		return self.addConstraint(constraint), constraint;
+	}
+
+	zsaGMAddConstraintError addConstraint(zsaGMConstraint constraint) {
+		if (self.cns.containsKey(constraint)) {
+			return zsaGMAddConstraintError_DuplicateConstraint;
+		}
+
+		zsaGMRow row; zsaGMTag tag;
+		[row, tag] = self.createRow(constraint);
+		let subject = chooseSubject(row, tag);
+
+		if (subject.kind == zsaGMSymbolKind_Invalid && allDummies(row)) {
+			if (!zsaGMGlobalMaths.nearZero(row.constant)) {
+				return zsaGMAddConstraintError_UnsatisfiableConstraint;
+			} else {
+				subject = tag.marker;
+			}
+		}
+		if (subject.kind == zsaGMSymbolKind_Invalid) {
+			if (!self.addWithArtificialVariable(row)) {
+				return zsaGMAddConstraintError_UnsatisfiableConstraint;
+			}
+		} else {
+			row.solveForSymbol(subject);
+			self.substitute(subject, row);
+
+			if (subject.kind == zsaGMSymbolKind_External && row.constant != 0.0) {
+				let v = zsaGMVariable(self.varForSymbol.get(subject));
+				self.varChanged(v);
+			}
+			self.rows.insert(subject, row);
+		}
+
+		self.cns.insert(constraint, tag);
+
+		let objective = self.objective;
+		self.optimise(objective);
+
+		return zsaGMAddConstraintError_None;
+	}
+
+	zsaGMRemoveConstraintError removeConstraint(zsaGMConstraint constraint) {
+		let t = self.cns.remove(constraint);
+		if (t is "zsaGMHashUnoccupied") {
+			return zsaGMRemoveConstraintError_UnknownConstraint;
+		}
+		let tag = zsaGMTag(t);
+
+		self.removeConstraintEffects(constraint, tag);
+
+		if (self.rows.remove(tag.marker) is "zsaGMHashUnoccupied") {
+			zsaGMSymbol leaving; zsaGMRow row;
+			[leaving, row] = self.getMarkerLeavingRow(tag.marker);
+			row.solveForSymbols(leaving, tag.marker);
+			self.substitute(tag.marker, row);
+		}
+
+		let objective = self.objective;
+		self.optimise(objective);
+
+		let cexpr = constraint.getExpr();
+		for (let i = 0; i < cexpr.terms.size(); i++) {
+			let term = cexpr.terms[i];
+			if (!zsaGMGlobalMaths.nearZero(term.coefficient)) {
+				let shouldRemove = false;
+				let v = self.varData.get(term.variable);
+				if (!(v is "zsaGMHashUnoccupied")) {
+					let v = zsaGMVarDataEntry(v);
+					v.count -= 1;
+					shouldRemove = v.count == 0;
+				}
+				if (shouldRemove) {
+					self.varForSymbol.remove(zsaGMVarDataEntry(self.varData.get(term.variable)).symbol);
+					self.varData.remove(term.variable);
+				}
+			}
+		}
+
+		return zsaGMRemoveConstraintError_None;
+	}
+
+	bool hasConstraint(zsaGMConstraint constraint) {
+		return self.cns.containsKey(constraint);
+	}
+
+	zsaGMAddEditVariableError addEditVariable(zsaGMVariable v, double strength) {
+		if (self.edits.containsKey(v)) {
+			return zsaGMAddEditVariableError_DuplicateEditVariable;
+		}
+		let strength = zsaGMStrength.clip(strength);
+		if (strength == zsaGMStrength.REQUIRED) {
+			return zsaGMAddEditVariableError_BadRequiredStrength;
+		}
+		let cn = self.constraintManager.createConstraint(
+			zsaGMExpr.fromTerm(zsaGMTerm.create(v, 1.0)),
+			zsaGMRel_Eq,
+			strength
+		);
+		{
+			let err = self.addConstraint(cn);
+			if (err != 0) { throwAbortException("shouldn't happen"); }
+		}
+		self.edits.insert(
+			v,
+			zsaGMEditInfo.create(
+				zsaGMTag(self.cns.get(cn)),
+				cn,
+				0.0
+			)
+		);
+
+		return zsaGMAddEditVariableError_None;
+	}
+
+	zsaGMRemoveEditVariableError removeEditVariable(zsaGMVariable v) {
+		let e = self.edits.remove(v);
+		if (!(e is "zsaGMHashUnoccupied")) {
+			let constraint = zsaGMEditInfo(e).constraint;
+			let err = self.removeConstraint(constraint);
+			if (err == zsaGMRemoveConstraintError_UnknownConstraint) {
+				throwAbortException("Edit constraint not in system.");
+			}
+			return zsaGMRemoveEditVariableError_None;
+		} else {
+			return zsaGMRemoveEditVariableError_UnknownEditVariable;
+		}
+	}
+
+	bool hasEditVariable(zsaGMVariable v) {
+		return self.edits.containsKey(v);
+	}
+
+	zsaGMSuggestValueError suggestValue(zsaGMVariable variable, double value) {
+		let i = self.edits.get(variable);
+		if (i is "zsaGMHashUnoccupied") {
+			return zsaGMSuggestValueError_UnknownEditVariable;
+		}
+		let info = zsaGMEditInfo(i);
+		let infoTagMarker = info.tag.marker;
+		let infoTagOther = info.tag.other;
+		let delta = value - info.constant;
+		info.constant = value;
+
+		{
+			let rm = self.rows.get(infoTagMarker);
+			let ro = self.rows.get(infoTagOther);
+			if (!(rm is "zsaGMHashUnoccupied")) {
+				let row = zsaGMRow(rm);
+				if (row.add(-delta) < 0.0) {
+					infeasibleRows.push(infoTagMarker);
+				}
+			} else if (!(ro is "zsaGMHashUnoccupied")) {
+				let row = zsaGMRow(ro);
+				if (row.add(delta) < 0.0) {
+					infeasibleRows.push(infoTagOther);
+				}
+			} else {
+				let iter = self.rows.iter();
+				while (true) {
+					Object ko, vo;
+					[ko, vo] = iter.next();
+					if (ko is "zsaGMHashUnoccupied") { break; }
+
+					let symbol = zsaGMSymbol(ko);
+					let row = zsaGMRow(vo);
+
+					let coeff = row.coefficientFor(infoTagMarker);
+					let diff = delta * coeff;
+					if (diff != 0.0 && symbol.kind == zsaGMSymbolKind_External) {
+						let v = zsaGMVariable(self.varForSymbol.get(symbol));
+						if (self.shouldClearChanges) {
+							self.changed.clear();
+							self.shouldClearChanges = false;
+						}
+						self.changed.insert(v);
+					}
+					if (
+						coeff != 0.0 &&
+						row.add(diff) < 0.0 &&
+						symbol.kind != zsaGMSymbolKind_External
+					) {
+						infeasibleRows.push(symbol);
+					}
+				}
+			}
+		}
+
+		self.dualOptimise();
+
+		return zsaGMSuggestValueError_None;
+	}
+
+	private void varChanged(zsaGMVariable v) {
+		if (self.shouldClearChanges) {
+			self.changed.clear();
+			self.shouldClearChanges = false;
+		}
+		self.changed.insert(v);
+	}
+
+	void fetchChanges(out Array<zsaGMPublicChangesEntry> ret) {
+		if (self.shouldClearChanges) {
+			self.changed.clear();
+			self.shouldClearChanges = false;
+		} else {
+			self.shouldClearChanges = true;
+		}
+		self.publicChanges.clear();
+
+		let iter = self.changed.iter();
+		while (true) {
+			let vo = iter.next();
+			if (vo is "zsaGMHashUnoccupied") { break; }
+			let v = zsaGMVariable(vo);
+			
+			let vd = self.varData.get(v);
+			if (!(vd is "zsaGMHashUnoccupied")) {
+				let varData = zsaGMVarDataEntry(vd);
+				let r = self.rows.get(varData.symbol);
+				let newValue = 0.0;
+				if (!(r is "zsaGMHashUnoccupied")) {
+					newValue = zsaGMRow(r).constant;
+				}
+				let oldValue = varData.value;
+				if (oldValue != newValue) {
+					self.publicChanges.push(
+						zsaGMPublicChangesEntry.create(v, newValue)
+					);
+					varData.value = newValue;
+				}
+			}
+		}
+
+		ret.copy(self.publicChanges);
+	}
+
+	void reset() {
+		self.rows.clear();
+		self.cns.clear();
+		self.varData.clear();
+		self.varForSymbol.clear();
+		self.changed.clear();
+		self.shouldClearChanges = false;
+		self.edits.clear();
+		self.infeasibleRows.clear();
+		self.objective = zsaGMRow.create(0.0);
+		self.artificial = NULL;
+		self.idTick = 1;
+	}
+
+	private zsaGMSymbol getVarSymbol(zsaGMVariable v) {
+		zsaGMVarDataEntry value;
+		let vd = self.varData.get(v);
+		if (!(vd is "zsaGMHashUnoccupied")) {
+			value = zsaGMVarDataEntry(vd);
+		} else {
+			let s = zsaGMSymbol.create(self.idTick, zsaGMSymbolKind_External);
+			self.varForSymbol.insert(s, v);
+			self.idTick += 1;
+			value = zsaGMVarDataEntry.create(double.NAN, s, 0);
+			self.varData.insert(v, value);
+		}
+		value.count += 1;
+		return value.symbol;
+	}
+
+	private zsaGMRow, zsaGMTag createRow(zsaGMConstraint constraint) {
+		let expr = constraint.getExpr();
+		let row = zsaGMRow.create(expr.constant);
+		for (let i = 0; i < expr.terms.size(); i++) {
+			let term = expr.terms[i]; 
+			if (!zsaGMGlobalMaths.nearZero(term.coefficient)) {
+				let symbol = self.getVarSymbol(term.variable);
+				let o = self.rows.get(symbol);
+				if (!(o is "zsaGMHashUnoccupied")) {
+					let otherRow = zsaGMRow(o);
+					row.insertRow(otherRow, term.coefficient);
+				} else {
+					row.insertSymbol(symbol, term.coefficient);
+				}
+			}
+		}
+
+		let objective = self.objective;
+
+		zsaGMTag tag;
+		let constraintOp = constraint.getOp();
+		switch (constraintOp) {
+		case zsaGMRel_Geq:
+		case zsaGMRel_Leq: {
+			let coeff = (constraintOp == zsaGMRel_Leq) ? 1.0 : -1.0;
+			let slack = zsaGMSymbol.create(self.idTick, zsaGMSymbolKind_Slack);
+			self.idTick += 1;
+			row.insertSymbol(slack, coeff);
+			let constraintStrength = constraint.getStrength();
+			if (constraintStrength < zsaGMStrength.REQUIRED) {
+				let error = zsaGMSymbol.create(self.idTick, zsaGMSymbolKind_Error);
+				self.idTick += 1;
+				row.insertSymbol(error, -coeff);
+				objective.insertSymbol(error, constraintStrength);
+				tag = zsaGMTag.create(
+					marker: slack,
+					other: error
+				);
+			} else {
+				tag = zsaGMTag.create(
+					marker: slack,
+					other: zsaGMSymbol.invalid()
+				);
+			}
+			break;
+		}
+		case zsaGMRel_Eq: {
+			let constraintStrength = constraint.getStrength();
+			if (constraintStrength < zsaGMStrength.REQUIRED) {
+				let errplus = zsaGMSymbol.create(self.idTick, zsaGMSymbolKind_Error);
+				self.idTick += 1;
+				let errminus = zsaGMSymbol.create(self.idTick, zsaGMSymbolKind_Error);
+				self.idTick += 1;
+				row.insertSymbol(errplus,  -1.0);
+				row.insertSymbol(errminus,  1.0);
+				objective.insertSymbol(errplus, constraintStrength);
+				objective.insertSymbol(errminus, constraintStrength);
+				tag = zsaGMTag.create(
+					marker: errplus,
+					other: errminus
+				);
+			} else {
+				let dummy = zsaGMSymbol.create(self.idTick, zsaGMSymbolKind_Dummy);
+				self.idTick += 1;
+				row.insertSymbol(dummy, 1.0);
+				tag = zsaGMTag.create(
+					marker: dummy,
+					other: zsaGMSymbol.invalid()
+				);
+			}
+			break;
+		}
+		default:
+			throwAbortException("shouldn't happen");
+		}
+
+		if (row.constant < 0.0) {
+			row.reverseSign();
+		}
+		return row, tag;
+	}
+
+	static private zsaGMSymbol chooseSubject(zsaGMRow row, zsaGMTag tag) {
+		let iter = row.cells.iter();
+		while (true) {
+			let ko = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+			let s = zsaGMSymbol(ko);
+
+			if (s.kind == zsaGMSymbolKind_External) {
+				return s;
+			}
+		}
+		if (tag.marker.kind == zsaGMSymbolKind_Slack || tag.marker.kind == zsaGMSymbolKind_Error) {
+			if (row.coefficientFor(tag.marker) < 0.0) {
+				return tag.marker;
+			}
+		}
+		if (tag.other.kind == zsaGMSymbolKind_Slack || tag.other.kind == zsaGMSymbolKind_Error) {
+			if (row.coefficientFor(tag.other) < 0.0) {
+				return tag.other;
+			}
+		}
+		return zsaGMSymbol.invalid();
+	}
+
+	private bool addWithArtificialVariable(zsaGMRow row) {
+		let art = zsaGMSymbol.create(self.idTick, zsaGMSymbolKind_Slack);
+		self.idTick += 1;
+		self.rows.insert(art, row.clone());
+		self.artificial = row.clone();
+
+		let artificial = self.artificial;
+		self.optimise(artificial);
+		let success = zsaGMGlobalMaths.nearZero(artificial.constant);
+		self.artificial = NULL;
+
+		let r = self.rows.remove(art);
+		if (!(r is "zsaGMHashUnoccupied")) {
+			let row = zsaGMRow(r);
+			if (row.cells.isEmpty()) {
+				return success;
+			}
+			let entering = anyPivotableSymbol(row);
+			if (entering.kind == zsaGMSymbolKind_Invalid) {
+				return false;
+			}
+			row.solveForSymbols(art, entering);
+			self.substitute(entering, row);
+			self.rows.insert(entering, row);
+		}
+
+		let iter = self.rows.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let row = zsaGMRow(vo);
+
+			row.remove(art);
+		}
+		self.objective.remove(art);
+		return success;
+	}
+
+	private void substitute(zsaGMSymbol symbol, zsaGMRow row) {
+		let iter = self.rows.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let otherSymbol = zsaGMSymbol(ko);
+			let otherRow = zsaGMRow(vo);
+
+			let constantChanged = otherRow.substitute(symbol, row);
+			if (otherSymbol.kind == zsaGMSymbolKind_External && constantChanged) {
+				let v = zsaGMVariable(self.varForSymbol.get(otherSymbol));
+				if (self.shouldClearChanges) {
+					self.changed.clear();
+					self.shouldClearChanges = false;
+				}
+				self.changed.insert(v);
+			}
+			if (otherSymbol.kind != zsaGMSymbolKind_External && otherRow.constant < 0.0) {
+				self.infeasibleRows.push(otherSymbol);
+			}
+		}
+		self.objective.substitute(symbol, row);
+		if (self.artificial != NULL) {
+			let artificial = self.artificial;
+			artificial.substitute(symbol, row);
+		}
+	}
+
+	private void optimise(zsaGMRow objective) {
+		while (true) {
+			let entering = getEnteringSymbol(objective);
+			if (entering.kind == zsaGMSymbolKind_Invalid) {
+				return;
+			}
+			zsaGMSymbol leaving;
+			zsaGMRow row;
+			[leaving, row] = self.getLeavingRow(entering);
+			if (leaving == NULL) {
+				throwAbortException("internal solver error: the objective is unbounded");
+			}
+			row.solveForSymbols(leaving, entering);
+			self.substitute(entering, row);
+			if (entering.kind == zsaGMSymbolKind_External && row.constant != 0.0) {
+				let v = zsaGMVariable(self.varForSymbol.get(entering));
+				self.varChanged(v);
+			}
+			self.rows.insert(entering, row);
+		}
+	}
+
+	private void dualOptimise() {
+		while (self.infeasibleRows.size() != 0u) {
+			let leaving = self.infeasibleRows[self.infeasibleRows.size() - 1];
+			self.infeasibleRows.pop();
+
+			zsaGMRow row;
+			let e = self.rows.get(leaving);
+			if (!(e is "zsaGMHashUnoccupied")) {
+				let entry = zsaGMRow(e);
+				if (entry.constant < 0.0) {
+					row = entry;
+					self.rows.remove(leaving);
+				} else {
+					row = NULL;
+				}
+			} else {
+				row = NULL;
+			}
+			if (row != NULL) {
+				let entering = self.getDualEnteringSymbol(row);
+				if (entering.kind == zsaGMSymbolKind_Invalid) {
+					throwAbortException("internal solver error: dual optimise failed");
+				}
+				row.solveForSymbols(leaving, entering);
+				self.substitute(entering, row);
+				if (entering.kind == zsaGMSymbolKind_External && row.constant != 0.0) {
+					let v = zsaGMVariable(self.varForSymbol.get(entering));
+					self.varChanged(v);
+				}
+				self.rows.insert(entering, row);
+			}
+		}
+	}
+
+	private zsaGMSymbol getEnteringSymbol(zsaGMRow objective) {
+		let iter = objective.cells.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let symbol = zsaGMSymbol(ko);
+			let value = zsaGMBoxedDouble(vo).val;
+
+			if (symbol.kind != zsaGMSymbolKind_Dummy && value < 0.0) {
+				return symbol;
+			}
+		}
+		return zsaGMSymbol.invalid();
+	}
+
+	private zsaGMSymbol getDualEnteringSymbol(zsaGMRow row) {
+		let entering = zsaGMSymbol.invalid();
+		let ratio = double.INFINITY;
+		let objective = self.objective;
+		let iter = row.cells.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let symbol = zsaGMSymbol(ko);
+			let value = zsaGMBoxedDouble(vo).val;
+
+			if (value > 0.0 && symbol.kind != zsaGMSymbolKind_Dummy) {
+				let coeff = objective.coefficientFor(symbol);
+				let r = coeff / value;
+				if (r < ratio) {
+					ratio = r;
+					entering = symbol;
+				}
+			}
+		}
+		return entering;
+	}
+
+	private static zsaGMSymbol anyPivotableSymbol(zsaGMRow row) {
+		let iter = row.cells.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let symbol = zsaGMSymbol(ko);
+
+			if (symbol.kind == zsaGMSymbolKind_Slack || symbol.kind == zsaGMSymbolKind_Error) {
+				return symbol;
+			}
+		}
+		return zsaGMSymbol.invalid();
+	}
+
+	private zsaGMSymbol, zsaGMRow getLeavingRow(zsaGMSymbol entering) {
+		let ratio = double.INFINITY;
+		zsaGMSymbol found = NULL;
+		let iter = self.rows.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let symbol = zsaGMSymbol(ko);
+			let row = zsaGMRow(vo);
+
+			if (symbol.kind != zsaGMSymbolKind_External) {
+				let temp = row.coefficientFor(entering);
+				if (temp < 0.0) {
+					let tempRatio = -row.constant / temp;
+					if (tempRatio < ratio) {
+						ratio = tempRatio;
+						found = symbol;
+					}
+				}
+			}
+		}
+		if (found != NULL) {
+			return found, zsaGMRow(self.rows.remove(found));
+		} else {
+			return NULL, NULL;
+		}
+	}
+
+	private zsaGMSymbol, zsaGMRow getMarkerLeavingRow(zsaGMSymbol marker) {
+		let r1 = double.INFINITY;
+		let r2 = r1;
+		zsaGMSymbol first = NULL;
+		zsaGMSymbol second = NULL;
+		zsaGMSymbol third = NULL;
+		let iter = self.rows.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let symbol = zsaGMSymbol(ko);
+			let row = zsaGMRow(vo);
+
+			let c = row.coefficientFor(marker);
+			if (c == 0.0) {
+				continue;
+			}
+			if (symbol.kind == zsaGMSymbolKind_External) {
+				third = symbol;
+			} else if (c < 0.0) {
+				let r = -row.constant / c;
+				if (r < r1) {
+					r1 = r;
+					first = symbol;
+				}
+			} else {
+				let r = row.constant / c;
+				if (r < r2) {
+					r2 = r;
+					second = symbol;
+				}
+			}
+		}
+		let s =
+			(first != NULL)
+			? first
+			: (second != NULL)
+			  ? second
+			  : third;
+		if (s != NULL) {
+			if (s.kind == zsaGMSymbolKind_External && zsaGMRow(self.rows.get(s)).constant != 0.0) {
+				let v = zsaGMVariable(self.varForSymbol.get(s));
+				self.varChanged(v);
+			}
+			let r = self.rows.remove(s);
+			if (!(r is "zsaGMHashUnoccupied")) {
+				return s, zsaGMRow(r);
+			} else {
+				return NULL, NULL;
+			}
+		} else {
+			return NULL, NULL;
+		}
+	}
+
+	private void removeConstraintEffects(zsaGMConstraint cn, zsaGMTag tag) {
+		if (tag.marker.kind == zsaGMSymbolKind_Error) {
+			self.removeMarkerEffects(tag.marker, cn.getStrength());
+		} else if (tag.other.kind == zsaGMSymbolKind_Error) {
+			self.removeMarkerEffects(tag.other, cn.getStrength());
+		}
+	}
+
+	private void removeMarkerEffects(zsaGMSymbol marker, double strength) {
+		let r = self.rows.get(marker);
+		if (!(r is "zsaGMHashUnoccupied")) {
+			let row = zsaGMRow(r);
+			self.objective.insertRow(row, -strength);
+		} else {
+			self.objective.insertSymbol(marker, -strength);
+		}
+	}
+
+	private static bool allDummies(zsaGMRow row) {
+		let iter = row.cells.iter();
+		while (true) {
+			let ko = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+			let s = zsaGMSymbol(ko);
+
+			if (s.kind != zsaGMSymbolKind_Dummy) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	static void printRow(zsaGMRow row) {
+		let ret = "row = Row {\n    cells: {\n";
+
+		let iter = row.cells.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let symbol = zsaGMSymbol(ko);
+			let val = zsaGMBoxedDouble(vo).val;
+
+			ret.appendFormat("        %s: %f,\n", symbol.repr(), val);
+		}
+		ret.appendFormat("    },\n    constant: %f,\n}", row.constant);
+		Console.printf(ret);
+	}
+
+	private void printRows() {
+		let ret = "self.rows = {\n";
+		let iter = self.rows.iter();
+		while (true) {
+			Object ko, vo;
+			[ko, vo] = iter.next();
+			if (ko is "zsaGMHashUnoccupied") { break; }
+
+			let symbol = zsaGMSymbol(ko);
+			let row = zsaGMRow(vo);
+
+			ret.appendFormat("    %s: Row {\n        cells: {\n", symbol.repr());
+
+			let iter = row.cells.iter();
+			while (true) {
+				Object ko, vo;
+				[ko, vo] = iter.next();
+				if (ko is "zsaGMHashUnoccupied") { break; }
+
+				let symbol = zsaGMSymbol(ko);
+				let val = zsaGMBoxedDouble(vo).val;
+
+				ret.appendFormat("            %s: %f,\n", symbol.repr(), val);
+			}
+			ret.appendFormat("        },\n        constant: %f,\n    },\n", row.constant);
+		}
+		ret.appendFormat("}");
+		Console.printf(ret);
+	}
+}
