@@ -903,18 +903,23 @@ Class ZSAnimator : Thinker
 	void TransformPSPCorners(Psprite psp, ZSAnimationFrame f)
 	{
 		let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
-		Vector2 sprSize = TexMan.GetScaledSize(texid);
+		// int w, h;
+		// [w, h] = TexMan.GetSize(texid);
+		// Vector2 sprsize = (w, h);
+		Vector2 sprsize = TexMan.GetscaledSize(texid);
+		console.printf("sprsize %.2f %.2f", sprsize.x, sprsize.y);
+		console.printf("scale %.2f %.2f", f.pspScale.x, f.pspScale.y);
 		
 		Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
 		Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
 		Vector3 corner2 = (sprSize.x/2, -sprSize.y/2, 0);
 		Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
-		Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 0);
+		Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 1);
 		
 		Quat qa = Quat.FromAngles(-f.angles.x, f.angles.y, f.angles.z);
 		Quat rolled1 = Quat.AxisAngle((0,0,1), 0);
 		Quat qr = qa * rolled1;
-		double yaw = f.angles.y, pitch = f.angles.z, roll = f.angles.x;
+		double yaw, pitch, roll;
 		[yaw, pitch, roll] = QuatToEuler(qa);
 		
 		let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), yaw, pitch, roll, vecSc);
@@ -951,6 +956,7 @@ Class ZSAnimator : Thinker
 			}
 			
 			psp.bInterpolate = !psp.firstTic && f.interpolate && !forceDisableInterpolation;
+			console.printf("interp %d", psp.bInterpolate);
 			
 			double x, y;
 			
@@ -980,14 +986,14 @@ Class ZSAnimator : Thinker
 			
 			SetPSPPosition(psp, (x, y));
 			
-			if (f.flipy || anim.flipAnimX)
-			{
-				psp.bflip = true;
-			}
-			else
-			{
-				psp.bflip = false;
-			}
+			// if (f.flipy || anim.flipAnimX)
+			// {
+				// psp.bflip = true;
+			// }
+			// else
+			// {
+				// psp.bflip = false;
+			// }
 			psp.pivot = (0.5,0.5);
 			
 			Vector2 sc;
