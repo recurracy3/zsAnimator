@@ -895,7 +895,7 @@ Class ZSAnimator : Thinker
         return yaw, pitch, roll;
     }
 	
-	void TransformPSPCorners(Psprite psp, ZSAnimationFrame f)
+	void TransformPSPCorners(Psprite psp, ZSAnimation anim, ZSAnimationFrame f)
 	{
 		let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
 		// int w, h;
@@ -909,10 +909,13 @@ Class ZSAnimator : Thinker
 		Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
 		Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 1);
 		
-		Quat qa = Quat.FromAngles(-f.angles.x, f.angles.y, f.angles.z);
+		double yaw, pitch, roll;
+		yaw = f.angles.x * ((anim.flags & ZSAnimator.LF_FlipX == 0 ? -1 : 1));
+		pitch = f.angles.y;
+		roll = f.angles.z;
+		Quat qa = Quat.FromAngles(yaw, pitch, roll);
 		Quat rolled1 = Quat.AxisAngle((0,0,1), 0);
 		Quat qr = qa * rolled1;
-		double yaw, pitch, roll;
 		[yaw, pitch, roll] = QuatToEuler(qa);
 		
 		let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), yaw, pitch, roll, vecSc);
@@ -1004,7 +1007,7 @@ Class ZSAnimator : Thinker
 			
 			// SetPSPScale(psp, sc);
 			// SetPSPRotation(psp, ang);
-			TransformPSPCorners(psp, f);
+			TransformPSPCorners(psp, anim, f);
 			
 			LinkPSprite(anim, f, psp);
 		}
