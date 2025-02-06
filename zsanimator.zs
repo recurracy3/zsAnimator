@@ -146,8 +146,14 @@ class ZSAnimationReference : Actor
 		Quat bonAng = Quat.FromAngles(animRot.x, animRot.z-90, animRot.y);
 		Quat myrotQ = dir * bonAng;
 		Vector3 myrotV = myrotQ * (1,0,0);
-		self.A_SetAngle(atan2(myrotV.y, myrotV.x), SPF_INTERPOLATE);
-		self.A_SetPitch(-asin(myrotV.z), SPF_INTERPOLATE);
+		double ang, pit, roll;
+		[ang, pit, roll] = ZSanimator.QuatToEuler(myrotQ);
+		self.A_SetAngle(ang, SPF_INTERPOLATE);
+		self.A_SetPitch(pit, SPF_INTERPOLATE);
+		self.A_SetRoll(roll, SPF_INTERPOLATE);
+		
+		// self.A_SetAngle(atan2(myrotV.y, myrotV.x), SPF_INTERPOLATE);
+		// self.A_SetPitch(-asin(myrotV.z), SPF_INTERPOLATE);
 	}
 }
 
