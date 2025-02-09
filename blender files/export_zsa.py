@@ -23,7 +23,7 @@ from bpy import context
 import bpy.props
 import functools
 
-optionalProperties = {"reference"}
+optionalProperties = {"reference", "zPos"}
 
 class zScriptAnimation:
     def __init__(self, animationName):
@@ -76,13 +76,15 @@ class zScriptFrame:
             self.scale.z, self.scale.y,
             self.interpolation)
             
+        self.optionals["zPos"] = self.posOffs.x
+            
         print(self.optionals)
         for k in self.optionals:
             op = self.optionals[k]
             curStr += ",{0}: ".format(k)
             if isinstance(op, str):
                 curStr += "\""
-            curStr += op
+            curStr += "{0}".format(op)
             if isinstance(op, str):
                 curStr += "\""
             
