@@ -905,10 +905,10 @@ Class ZSAnimator : Thinker
 	void TransformPSPCorners(Psprite psp, ZSAnimation anim, ZSAnimationFrame f)
 	{
 		let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
-		// int w, h;
-		// [w, h] = TexMan.GetSize(texid);
-		// Vector2 sprsize = (w, h);
-		Vector2 sprsize = TexMan.GetscaledSize(texid);
+		int w, h;
+		[w, h] = TexMan.GetSize(texid);
+		Vector2 sprsize = (w, h);
+		// Vector2 sprsize = TexMan.GetscaledSize(texid);
 		
 		Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
 		Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
