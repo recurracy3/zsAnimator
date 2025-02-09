@@ -11,7 +11,7 @@ class ZSAnimationFrame
 	int frameNum;
 	int firstFrameNum;
 	Vector3 angles;
-	Vector2 pspOffsets;
+	Vector3 pspOffsets;
 	Vector2 pspScale;
 	bool interpolate;
 	ZSAnimation anim;
@@ -21,13 +21,14 @@ class ZSAnimationFrame
 	int flags;
 	
 	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool layered = false,
-		string reference = "")
+		string reference = "",
+		float zPos = 0.0)
 	{
 		let frame = ZSAnimationFrame(New("ZSAnimationFrame"));
 		frame.frameNum = frameNum;
 		frame.pspId = pspId;
 		frame.angles = angles;
-		frame.pspOffsets = pspOffsets;
+		frame.pspOffsets = (pspOffsets.x, pspOffsets.y, zPos);
 		frame.pspScale = pspScale;
 		// if (!layered)
 		// {
@@ -112,7 +113,7 @@ class ZSAnimationReference : Actor
 {
 	PlayerInfo ply;
 	Weapon parent;
-	Vector2 animPos;
+	Vector3 animPos;
 	Vector3 animRot; 
 	
 	Default
@@ -137,7 +138,7 @@ class ZSAnimationReference : Actor
 		Vector3 plyPos = (ply.mo.pos.x, ply.mo.pos.y, viewZ);
 		
 		Quat dir = Quat.FromAngles(plyAngs.x, plyAngs.y, plyAngs.z);
-		Vector3 offs = dir * (10.0, self.animPos.x/15.0, self.animPos.y/15.0);
+		Vector3 offs = dir * (self.animPos.z, self.animPos.x/15.0, self.animPos.y/15.0);
 		Vector3 glob = level.Vec3Offset(plyPos, (offs.x, offs.y, offs.z));
 		self.SetOrigin(glob, true);
 		
@@ -1069,10 +1070,10 @@ Class ZSAnimator : Thinker
 		ZSAnimationReference animRef = anim.references.Get(f.reference);
 		if (!animRef) { return; }
 		
-		Vector2 pos = f.pspOffsets;
+		Vector3 pos = (f.pspOffsets.x, f.pspOffsets.y, f.zPos);
 		if ((anim.flags & ZSanimator.LF_FlipX) != 0)
 		{
-			pos = (pos.x * -1, pos.y);
+			pos = (pos.x * -1, pos.y, pos.z);
 		}
 		animRef.animPos = pos;
 		
