@@ -137,8 +137,10 @@ class ZSAnimationReference : Actor
 		Vector3 plyAngs = (ply.mo.ViewAngle + ply.mo.angle, ply.mo.ViewPitch + ply.mo.Pitch, ply.mo.ViewRoll + ply.mo.Roll);
 		Vector3 plyPos = (ply.mo.pos.x, ply.mo.pos.y, viewZ);
 		
+		console.printf("offs %.2f %.2f %.2f", self.animPos.x, self.animPos.y, self.animPos.z);
 		Quat dir = Quat.FromAngles(plyAngs.x, plyAngs.y, plyAngs.z);
-		Vector3 offs = dir * (self.animPos.z, self.animPos.x/15.0, self.animPos.y/15.0);
+		Vector3 offs = dir * (self.animPos.z*-1, self.animPos.x, self.animPos.y);
+		console.printf("offs %.2f %.2f %.2f", offs.x, offs.y, offs.z);
 		Vector3 glob = level.Vec3Offset(plyPos, (offs.x, offs.y, offs.z));
 		self.SetOrigin(glob, true);
 		
@@ -435,7 +437,7 @@ Class ZSAnimation
 		ret.flags = frameA.flags;
 		
 		Vector3 rot = (0,0,0);
-		Vector2 pos = (0,0);
+		Vector3 pos = (0,0,0);
 		Vector2 sc = (0,0);
 		
 		bool flipx = self.flags & ZSAnimator.LF_FlipX != 0;
@@ -447,13 +449,14 @@ Class ZSAnimation
 				if ((frameA.flags & ZSAnimator.LF_AdditiveNoPSP) == 0)
 				{
 					let pspF = ZSAnimator.GetCurrentPspAsFrame(ply, layer);
-					pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(flipx?1:-1), (pspF.pspOffsets.y-100.0)*-1);
+					pspF.pspOffsets = ((pspF.pspOffsets.x-160.0)*(flipx?1:-1), (pspF.pspOffsets.y-100.0)*-1, pspF.pspOffsets.z);
 					
 					let rotB = (framea.angles.x - pspF.angles.x,
 						framea.angles.y - pspF.angles.y,
 						framea.angles.z - pspF.angles.z);
 					let posB = (framea.pspOffsets.x - pspF.pspOffsets.x,
-						framea.pspOffsets.y - pspF.pspOffsets.y);
+						framea.pspOffsets.y - pspF.pspOffsets.y,
+						framea.pspOffsets.z - pspF.pspOffsets.z);
 					let scB = (framea.pspScale.x - pspF.pspScale.x,
 						framea.pspScale.y - pspF.pspScale.y);
 					
@@ -461,7 +464,8 @@ Class ZSAnimation
 						frameB.angles.y - frameA.angles.y,
 						frameB.angles.z - frameA.angles.z);
 					pos = (frameB.pspOffsets.x - frameA.pspOffsets.x,
-						frameB.pspOffsets.y - frameA.pspOffsets.y);
+						frameB.pspOffsets.y - frameA.pspOffsets.y,
+						frameB.pspOffsets.z - frameA.pspOffsets.z);
 					sc = (frameB.pspScale.x - frameA.pspScale.x,
 						frameB.pspScale.y - frameA.pspScale.y);
 					
@@ -471,6 +475,7 @@ Class ZSAnimation
 					
 					pos.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, pos.x, posB.x, false);
 					pos.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, pos.y, posB.y, false);
+					pos.z = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, pos.z, posB.z, false);
 					
 					sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, sc.x, scB.x, false);
 					sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, sc.y, scB.y, false);
@@ -481,7 +486,8 @@ Class ZSAnimation
 						frameB.angles.y - frameA.angles.y,
 						frameB.angles.z - frameA.angles.z);
 					pos = (frameB.pspOffsets.x - frameA.pspOffsets.x,
-						frameB.pspOffsets.y - frameA.pspOffsets.y);
+						frameB.pspOffsets.y - frameA.pspOffsets.y,
+						frameB.pspOffsets.z - frameA.pspOffsets.z);
 					sc = (frameB.pspScale.x - frameA.pspScale.x,
 						frameB.pspScale.y - frameA.pspScale.y);
 					
@@ -491,6 +497,7 @@ Class ZSAnimation
 					
 					pos.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, pos.x, false);
 					pos.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, pos.y, false);
+					pos.z = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, pos.z, false);
 					
 					sc.x = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, sc.x, false);
 					sc.y = ZSAnimator.LinearMap(tickPerc, 1.0, 0.0, 0, sc.y, false);
@@ -504,6 +511,7 @@ Class ZSAnimation
 				
 				pos.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.x, frameB.pspOffsets.x, false);
 				pos.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.y, frameB.pspOffsets.y, false);
+				pos.z = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspOffsets.z, frameB.pspOffsets.z, false);
 				
 				sc.x = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.x, frameB.pspScale.x, false);
 				sc.y = ZSAnimator.LinearMap(tickPerc, 0.0, 1.0, frameA.pspScale.y, frameB.pspScale.y, false);
@@ -512,7 +520,7 @@ Class ZSAnimation
 		else if (frameA == frameB)
 		{
 			rot = (frameA.angles.x, frameA.angles.y, frameA.angles.z);
-			pos = (frameA.pspOffsets.x, frameA.pspOffsets.y);
+			pos = (frameA.pspOffsets.x, frameA.pspOffsets.y, frameA.pspOffsets.z);
 			sc = (frameA.pspScale.x, frameA.pspScale.y);
 		}
 		
@@ -1070,7 +1078,7 @@ Class ZSAnimator : Thinker
 		ZSAnimationReference animRef = anim.references.Get(f.reference);
 		if (!animRef) { return; }
 		
-		Vector3 pos = (f.pspOffsets.x, f.pspOffsets.y, f.zPos);
+		Vector3 pos = (f.pspOffsets.x, f.pspOffsets.y, f.pspOffsets.z);
 		if ((anim.flags & ZSanimator.LF_FlipX) != 0)
 		{
 			pos = (pos.x * -1, pos.y, pos.z);
@@ -1178,7 +1186,7 @@ Class ZSAnimator : Thinker
 			let psp = ply.FindPSprite(layerId);
 			if (!psp) { return ret; }
 			ret.angles = (psp.rotation, 0, 0);
-			ret.pspOffsets = (psp.x, psp.y);
+			ret.pspOffsets = (psp.x, psp.y, 0);
 			ret.pspScale = psp.scale;
 			ret.interpolate = psp.bInterpolate;
 		}
