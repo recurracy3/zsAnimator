@@ -115,6 +115,9 @@ class ZSAnimationReference : Actor
 	Weapon parent;
 	Vector3 animPos;
 	Vector3 animRot; 
+	Vector2 animScales;
+	bool _projectFromView;
+	property ProjectFromView : _projectFromView;
 	
 	Default
 	{
@@ -137,23 +140,33 @@ class ZSAnimationReference : Actor
 		Vector3 plyAngs = (ply.mo.ViewAngle + ply.mo.angle, ply.mo.ViewPitch + ply.mo.Pitch, ply.mo.ViewRoll + ply.mo.Roll);
 		Vector3 plyPos = (ply.mo.pos.x, ply.mo.pos.y, viewZ);
 		
-		console.printf("offs %.2f %.2f %.2f", self.animPos.x, self.animPos.y, self.animPos.z);
-		Quat dir = Quat.FromAngles(plyAngs.x, plyAngs.y, plyAngs.z);
-		Vector3 offs = dir * (self.animPos.z*-1, self.animPos.x, self.animPos.y);
-		console.printf("offs %.2f %.2f %.2f", offs.x, offs.y, offs.z);
+		Vector3 aPos = (self.animPos.x*1.2, self.animPos.y, self.animPos.z);
+		if (self._projectFromView)
+		{
+			aPos = (aPos.x / 15.0, aPos.y / 15.0, aPos.z);
+		}
+		
+		// console.printf("animpos %.2f %.2f %.2f", self.animPos.x, self.animPos.y, self.animPos.z);
+		Quat base = Quat.FromAngles(plyAngs.x, plyAngs.y, plyAngs.z);
+		Vector3 offs = base * (aPos.z*-1, aPos.x, aPos.y);
+		// console.printf("offs %.2f %.2f %.2f", offs.x, offs.y, offs.z);
 		Vector3 glob = level.Vec3Offset(plyPos, (offs.x, offs.y, offs.z));
+		// console.printf("glob %.2f %.2f %.2f", glob.x, glob.y, glob.z);
 		self.SetOrigin(glob, true);
 		
 		// set the angle of the reference
 		
 		Quat bonAng = Quat.FromAngles(animRot.x, animRot.z-90, animRot.y);
-		Quat myrotQ = dir * bonAng;
+		Quat myrotQ = base * bonAng;
 		Vector3 myrotV = myrotQ * (1,0,0);
 		double ang, pit, roll;
 		[ang, pit, roll] = ZSanimator.QuatToEuler(myrotQ);
 		self.A_SetAngle(ang, SPF_INTERPOLATE);
 		self.A_SetPitch(pit, SPF_INTERPOLATE);
 		self.A_SetRoll(roll, SPF_INTERPOLATE);
+		
+		console.printf("animscales %.2f %.2f", animScales);
+		self.scale = animScales;
 		
 		// self.A_SetAngle(atan2(myrotV.y, myrotV.x), SPF_INTERPOLATE);
 		// self.A_SetPitch(-asin(myrotV.z), SPF_INTERPOLATE);
@@ -1084,6 +1097,7 @@ Class ZSAnimator : Thinker
 			pos = (pos.x * -1, pos.y, pos.z);
 		}
 		animRef.animPos = pos;
+		animRef.animScales = f.pspScale;
 		
 		Vector3 ang = f.angles;
 		if ((anim.flags & ZSAnimator.LF_FlipX) != 0)
