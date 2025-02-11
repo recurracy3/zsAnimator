@@ -159,11 +159,10 @@ class ZSAnimationReference : Actor
 		Quat bonAng = Quat.FromAngles(animRot.x, animRot.z-90, animRot.y);
 		Quat myrotQ = base * bonAng;
 		Vector3 myrotV = myrotQ * (1,0,0);
-		double ang, pit, roll;
-		[ang, pit, roll] = ZSanimator.QuatToEuler(myrotQ);
-		self.A_SetAngle(ang, SPF_INTERPOLATE);
-		self.A_SetPitch(pit, SPF_INTERPOLATE);
-		self.A_SetRoll(roll, SPF_INTERPOLATE);
+		Vector3 rots = ZSanimator.QuatToEuler(myrotQ);
+		self.A_SetAngle(rots.x, SPF_INTERPOLATE);
+		self.A_SetPitch(rots.y, SPF_INTERPOLATE);
+		self.A_SetRoll(rots.z, SPF_INTERPOLATE);
 		
 		self.scale = animScales;
 		
@@ -899,7 +898,7 @@ Class ZSAnimator : Thinker
 	}
 	
 	// Credits to dodopod
-	static double, double, double QuatToEuler(quat r)
+	static Vector3 QuatToEuler(quat r)
     {
         // Roll        
         double sinRCosP = 2 * (r.w * r.x + r.y * r.z);
@@ -919,8 +918,35 @@ Class ZSAnimator : Thinker
         double cosYCosP = 1 - 2 * (r.y * r.y + r.z * r.z);
         double yaw = Atan2(sinYCosP, cosYCosP);
 
-        return yaw, pitch, roll;
+        return (yaw, pitch, roll);
     }
+	
+	Vector3 ReorderToGuta(Vector3 angs)
+	{
+		// ORDER IN ZSANIMATOR:
+		// ROLL == X
+		// YAW == Y
+		// PITCH == Z
+		
+		// ORDER OUT GUTAMATICS:
+		// YAW == X
+		// PITCH == Y
+		// ROLL == Z
+		
+		// (1, 0, 0) == rotate on forwards axis (results in rotating roll)
+		// (0, 1, 0) == rotate by up axis (results in rotating yaw)
+		// (0, 0, 1) == rotate by side axis (results in rotating pitch)
+		
+		Quat q1 = Quat.AxisAngle((1, 0, 0), angs.x);
+		Quat q2 = Quat.AxisAngle((0, 1, 0), angs.y);
+		Quat q3 = Quat.AxisAngle((0, 0, 1), angs.z);
+		Quat q = q1 * q2 * q3;
+		let outV = QuatToEuler(q);
+		
+		// Quat inQ = Quat.FromAngles(
+		
+		return outV;
+	}
 	
 	void TransformPSPCorners(Psprite psp, ZSAnimation anim, ZSAnimationFrame f)
 	{
@@ -936,16 +962,10 @@ Class ZSAnimator : Thinker
 		Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
 		Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 1);
 		
-		double yaw, pitch, roll;
-		yaw = f.angles.x * ((anim.flags & ZSAnimator.LF_FlipX == 0 ? -1 : 1));
-		pitch = f.angles.y;
-		roll = f.angles.z;
-		Quat qa = Quat.FromAngles(yaw, pitch, roll);
-		Quat rolled1 = Quat.AxisAngle((0,0,1), 0);
-		Quat qr = qa * rolled1;
-		[yaw, pitch, roll] = QuatToEuler(qa);
+		Vector3 angs = (f.angles.x * ((anim.flags & ZSAnimator.LF_FLIPX == 0 ? -1 : 1)), f.angles.y, f.angles.z);
+		angs = ReorderToGuta(angs);
 		
-		let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), yaw, pitch, roll, vecSc);
+		let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), angs.z, angs.y, angs.x, vecSc);
 		
 		Vector3 v0 = rotScMatrix.multiplyVector3(corner0);
 		Vector3 v1 = rotScMatrix.multiplyVector3(corner1);
@@ -962,7 +982,7 @@ Class ZSAnimator : Thinker
 		psp.coord3 = diff3.xy;
 	}
 	
-	void ApplyPSP(ZSanimation anim, ZSanimationFrame f)
+	play void ApplyPSP(ZSanimation anim, ZSanimationFrame f)
 	{
 		let psp = ply.FindPSprite(f.pspId);
 		bool flipx = (anim.flags & ZSAnimator.LF_FlipX) != 0;
@@ -1106,7 +1126,7 @@ Class ZSAnimator : Thinker
 		animRef.animRot = ang;
 	}
 	
-	void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
+	play void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
 	{
 		if (f.pspId == ZSAnimator.PlayerView)
 		{
