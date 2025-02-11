@@ -165,7 +165,6 @@ class ZSAnimationReference : Actor
 		self.A_SetPitch(pit, SPF_INTERPOLATE);
 		self.A_SetRoll(roll, SPF_INTERPOLATE);
 		
-		console.printf("animscales %.2f %.2f", animScales);
 		self.scale = animScales;
 		
 		// self.A_SetAngle(atan2(myrotV.y, myrotV.x), SPF_INTERPOLATE);
