@@ -23,7 +23,7 @@ from bpy import context
 import bpy.props
 import functools
 
-optionalProperties = {"reference", "zPos"}
+optionalProperties = {"reference"}
 
 class zScriptAnimation:
     def __init__(self, animationName):
@@ -40,7 +40,7 @@ class zScriptAnimation:
         result += '\t}\n'
         result += '\toverride void MakeFrameList() {\n'
         for frame in self.frames:
-            result += '\t' + frame.toZscript(None) + ';\n'
+            result += '\t' + frame.toZscript() + ';\n'
             
         result += '\n}\n}'
         return result
@@ -60,7 +60,7 @@ class zScriptFrame:
         self.optionals = {}
         
     #convert this data to a zscript line
-    def toZscript(self, optionalProperties):
+    def toZscript(self):
         if (self.layerName.startswith("!")):
             self.layerName = 'ZSAnimator.None'
         # format: 
@@ -73,7 +73,7 @@ class zScriptFrame:
         curStr = ("frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}").format(self.layerName, self.frame,
             self.rotation.x, self.rotation.y, self.rotation.z,
             self.posOffs.z, self.posOffs.y,
-            self.scale.z, self.scale.y,
+            self.scale.x, self.scale.y,
             self.interpolation)
             
         self.optionals["zPos"] = self.posOffs.x
@@ -122,6 +122,50 @@ def keyframe_exists(fcurves, bonename, framenum):
 #        if(item.co.x == framenum):
 #            return True
     return False
+    
+def boneHasProperty(bone, prop):
+    try:
+        return bone[prop];
+    except:
+        return None;
+    
+def exportZSFullEval(context, filename, animName, actionName):
+    scene = bpy.data.scenes['Scene']
+    action = bpy.data.actions[actionName]
+    obj = context.object
+    obj.animation_data.action = action
+    selectedBones = bpy.context.selected_pose_bones
+    totalFrames = 0
+    
+    zAnim = zScriptAnimation(animName)
+    
+    for framenum in range(scene.frame_start, scene.frame_end+1):
+        frameOffs = framenum - (scene.frame_start)
+        bpy.context.scene.frame_set(framenum)
+        print('framenum {0} offs {1}'.format(framenum, frameOffs))
+        for b in selectedBones:
+            print(b.name)
+            print(b.scale)
+            zFrame = zScriptFrame(frameOffs)
+            zFrame.layerName = b.name
+            zFrame.rotation = mathutils.Euler((math.degrees(b.rotation_euler.x), math.degrees(b.rotation_euler.y), math.degrees(b.rotation_euler.z)), ('XYZ'))
+            zFrame.posOffs = b.location * 100.0
+            zFrame.scale = mathutils.Vector((b.scale.x, b.scale.y, b.scale.z))
+            print(zFrame.scale)
+            zFrame.interpolation = True
+            
+            for p in optionalProperties:
+                propVal = boneHasProperty(b, p)
+                if (propVal != None):
+                    zFrame.optionals[p] = propVal
+                    
+            print(zFrame.toZscript())
+            zAnim.frames.append(zFrame)
+            
+        zAnim.frameCount += 1;
+    
+    write_file(filename, zAnim)
+            
         
 def exportZS(context, filename, animName, actionName, fillinFrames):
     scene = bpy.data.scenes['Scene']
@@ -272,7 +316,8 @@ class ZScriptExport(bpy.types.Operator, bpy_extras.io_utils.ExportHelper):
     
     def execute(self, context):
         print('lol')
-        exportZS(context, self.properties.filepath, self.properties.animName, self.properties.actionName, self.properties.fillinFrames)
+        # exportZS(context, self.properties.filepath, self.properties.animName, self.properties.actionName, self.properties.fillinFrames)
+        exportZSFullEval(context, self.properties.filepath, self.properties.animName, self.properties.actionName)
         return {'FINISHED'}
 #        unregister()
 
