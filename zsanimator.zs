@@ -950,6 +950,9 @@ Class ZSAnimator : Thinker
 	
 	void TransformPSPCorners(Psprite psp, ZSAnimation anim, ZSAnimationFrame f)
 	{
+		if (!psp || !psp.curstate) { return; }
+		if (!f) { return; }
+		if (!anim) { return; }
 		let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
 		int w, h;
 		[w, h] = TexMan.GetSize(texid);
