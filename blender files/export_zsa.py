@@ -73,7 +73,7 @@ class zScriptFrame:
         curStr = ("frames.Push(ZSAnimationFrame.Create({0}, {1}, ({2}, {3}, {4}), ({5}, {6}), ({7}, {8}), {9}").format(self.layerName, self.frame,
             self.rotation.x, self.rotation.y, self.rotation.z,
             self.posOffs.z, self.posOffs.y,
-            self.scale.x, self.scale.y,
+            self.scale.z, self.scale.y,
             self.interpolation)
             
         self.optionals["zPos"] = self.posOffs.x
