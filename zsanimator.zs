@@ -541,7 +541,7 @@ Class ZSAnimation
 		return ret;
 	}
 	
-	void DeleteFrames(int pspId)
+	play void DeleteFrames(int pspId)
 	{
 		for (int i = 0; i < frames.Size(); i++)
 		{
@@ -623,11 +623,6 @@ Class ZSAnimation
 				f.pspOffsets.y += offsets.y;
 			}
 		}
-	}
-	
-	override void OnDestroy()
-	{
-		super.OnDestroy();
 	}
 }
 
@@ -774,7 +769,7 @@ Class ZSAnimator : Thinker
 		currentAnimations.Clear();
 	}
 	
-	void AdvanceAnimations()
+	play void AdvanceAnimations()
 	{
 		Array<ZSAnimation> deletedAnims;
 		for (int i = 0; i < currentAnimations.size(); i++)
