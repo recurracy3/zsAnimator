@@ -118,6 +118,8 @@ class ZSAnimationReference : Actor
 	Vector2 animScales;
 	bool _projectFromView;
 	property ProjectFromView : _projectFromView;
+	Vector3 _posMults;
+	property PosMults : _posMults;
 	
 	Default
 	{
@@ -125,6 +127,8 @@ class ZSAnimationReference : Actor
 		+NOINTERACTION;
 		-SOLID;
 		+NOGRAVITY;
+		
+		ZSAnimationReference.PosMults (1,1,1);
 	}
 	
 	override void Tick()
@@ -141,6 +145,7 @@ class ZSAnimationReference : Actor
 		Vector3 plyPos = (ply.mo.pos.x, ply.mo.pos.y, viewZ);
 		
 		Vector3 aPos = (self.animPos.x*1.2, self.animPos.y, self.animPos.z);
+		aPos = (aPos.x * _posMults.x, aPos.y * _posMults.y, aPos.z * _posMults.z);
 		if (self._projectFromView)
 		{
 			aPos = (aPos.x / 15.0, aPos.y / 15.0, aPos.z);
