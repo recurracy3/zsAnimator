@@ -58,6 +58,7 @@ class zScriptFrame:
         self.sprite = ""
         self.duration = 0
         self.optionals = {}
+        self.parent = {}
         
     #convert this data to a zscript line
     def toZscript(self):
@@ -76,16 +77,22 @@ class zScriptFrame:
             self.scale.x, self.scale.y,
             self.interpolation)
             
-        self.optionals["zPos"] = self.posOffs.x
+        self.optionals["zPos"] = {}
+        self.optionals["zPos"]["val"] = self.posOffs.x
+        
+        if (self.parent):
+            self.optionals['parent'] = {}
+            self.optionals['parent']['val'] = self.parent
+            self.optionals['parent']['noquotes'] = True
             
         print(self.optionals)
         for k in self.optionals:
             op = self.optionals[k]
             curStr += ",{0}: ".format(k)
-            if isinstance(op, str):
+            if isinstance(op['val'], str) and 'noquotes' not in op:
                 curStr += "\""
-            curStr += "{0}".format(op)
-            if isinstance(op, str):
+            curStr += "{0}".format(op['val'])
+            if isinstance(op['val'], str) and 'noquotes' not in op:
                 curStr += "\""
             
         curStr += "))"
@@ -154,10 +161,14 @@ def exportZSFullEval(context, filename, animName, actionName):
             print(zFrame.scale)
             zFrame.interpolation = True
             
+            if (b.parent and b.parent.name != "ZSAnimator.PlayerView"):
+                zFrame.parent = b.parent.name
+            
             for p in optionalProperties:
                 propVal = boneHasProperty(b, p)
                 if (propVal != None):
-                    zFrame.optionals[p] = propVal
+                    zFrame.optionals[p] = {}
+                    zFrame.optionals[p]['val'] = propVal
                     
             print(zFrame.toZscript())
             zAnim.frames.append(zFrame)
@@ -252,7 +263,8 @@ def exportZS(context, filename, animName, actionName, fillinFrames):
             for p in optionalProperties:
                 print(p)
                 try:
-                    properties[bone.name]['optionals'][p] = bone[p]
+                    properties[bone.name]['optionals'][p] = {}
+                    properties[bone.name]['optionals'][p][val] = bone[p]
                 except:
                     print("no {0}".format(p))
             
