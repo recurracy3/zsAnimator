@@ -648,6 +648,15 @@ Class ZSAnimation
 
 Class ZSAnimator : Thinker
 {
+	static clearscope Vector3 GetScaleFromMatrix(zsagmmatrix4 matrix)
+	{
+		matrix = matrix.transpose();
+		float x = (matrix.values[0][0], matrix.values[1][0], matrix.values[2][0]).length();
+		float y = (matrix.values[0][1], matrix.values[1][1], matrix.values[2][1]).length();
+		float z = (matrix.values[0][2], matrix.values[1][2], matrix.values[2][2]).length();
+		return (x, y, z);
+	}
+
 	static clearscope double LinearMap(double val, double source_min, double source_max, double out_min, double out_max, bool clampIt = false) {
         double d = (val - source_min) * (out_max - out_min) / (source_max - source_min) + out_min;
         if (clampit) {
@@ -697,6 +706,7 @@ Class ZSAnimator : Thinker
 
 	ZSAPSP MakeZSAPSP(int pspId)
 	{
+		if (pspId == ZSAnimator.PlayerView) { return NULL; }
 		ZSAPSP p = New("ZSAPSP");
 		p.pspId = pspId;
 		p.animator = self;
@@ -727,6 +737,11 @@ Class ZSAnimator : Thinker
 	{
 		foreach(frame : anim.frames)
 		{
+			if (!frame)
+			{
+				continue;
+			}
+			if (frame.pspId == ZSAnimator.PlayerView) { continue; }
 			ZSAPSP zsap;
 			if (!zsaPspDict.CheckKey(frame.pspId))
 			{
@@ -1231,20 +1246,6 @@ Class ZSAnimator : Thinker
 		super.OnDestroy();
 	}
 
-	void UpdateZSAPsps()
-	{
-		foreach(k,v:zsaPspDict)
-		{
-			if (!v.psp)
-			{
-				let psp = ply.FindPSprite(k);
-				if (psp)
-				{
-					v.psp = psp;
-				}
-			}
-		}
-	}
 	
 	override void Tick()
 	{
@@ -1309,8 +1310,17 @@ Class ZSAnimator : Thinker
 		psp.SetState(st);
 		psp.firstTic = true;
 
-		ZSAPSP zsaPsp = MakeZSAPSP(pspId);
-		AddZSAPSPToDict(zsaPsp);
+		ZSAPSP zsaPsp = NULL;
+		if (!zsaPspDict.CheckKey(pspId))
+		{
+			zsaPsp = MakeZSAPSP(pspId);
+			AddZSAPSPToDict(zsaPsp);
+		}
+		else
+		{
+			zsaPsp = zsaPspDict.GetIfExists(pspId);
+		}
+		zsaPsp.psp = psp;
 	}
 	
 	static ZSAnimationFrame GetCurrentPspAsFrame(PlayerInfo ply, int layerId)

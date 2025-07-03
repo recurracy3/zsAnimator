@@ -10,19 +10,21 @@ class ZSAPSP
 
     // The ID of this zsaPsp instance.
     int pspId;
-    // The psprite this ZSAPSP instance wraps. For initialization this can be null but MUST be filled in by ZSAnimator on the first animation tic.
+    // The psprite this ZSAPSP instance wraps. For initialization this can be null but MUST be filled in by ZSAnimator directly after.
     PSprite psp;
-    // The previous TRS matrix of this PSP, for interpolation.
-    zsaGMMatrix4 prevTrsMatrix;
     // The current TRS matrix of this PSP.
     zsaGMMatrix4 trsMatrix;
     // This psp's parent. Can be null.
+    int parentPspId;
     ZSAPSP parent;
     // The children of this ZSAPSP.
     Array<ZSAPSP> children;
     // Pointer to the animator. Must not be null!
     ZSAnimator animator;
 
+    Vector3 localOffs;
+    Vector3 localAngs;
+    Vector3 localScale;
     // If true, if this ZSAPSP is destroyed, destroy all child ZSAPSPs as well.
     bool collapseOnDestroy;
 
@@ -33,7 +35,20 @@ class ZSAPSP
 
     ZSAGMMatrix4 LocalTRSToViewportTRS()
     {
-        return NULL;
+        let angs = self.localAngs;//ZSAnimator.ReorderEulerToGuta(self.localAngs);
+        ZSAGMMatrix4 ret = zsaGMMatrix4.CreateTRSEuler((localOffs.x, localOffs.y, 0), angs.x, angs.y, angs.z, (localScale.x, localScale.y, 1));
+        if (parent)
+        {
+            let parentMatrix = parent.LocalTRSToViewportTRS();
+            let sc = ZSAnimator.GetScaleFromMatrix(parentMatrix);
+            console.printf("%d %.2f %.2f %.2f", parent.pspId, sc.x, sc.y, sc.z);
+            ret = parentMatrix.multiplyMatrix(ret);
+            sc = ZSAnimator.GetScaleFromMatrix(ret);
+            console.printf("%d %.2f %.2f %.2f", parent.pspId, sc.x, sc.y, sc.z);
+        }
+
+        let sc = ZSAnimator.GetScaleFromMatrix(ret);
+        return ret;
     }
 
     ZSAGMMatrix4 GetTRSMatrixFromFrame(ZSAnimationFrame frame)
@@ -60,6 +75,12 @@ class ZSAPSP
         self.parent = NULL;
     }
 
+    void SetTRS(Vector3 t, Vector3 r, Vector3 s)
+    {
+        self.localOffs = t;
+        self.localAngs = r;
+        self.localScale = s;
+    }
     void TransformCorners()
     {
         // if (!psp || !psp.curstate) { return; }
