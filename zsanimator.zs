@@ -705,7 +705,6 @@ Class ZSAnimator : Thinker
 		if (!zsaPspDict.CheckKey(zsap.pspId))
 		{
 			zsaPspDict.Insert(zsap.pspId, zsap);
-			DumpDictionary();
 			return true;
 		}
 		return false;
