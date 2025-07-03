@@ -71,9 +71,16 @@ class ZSAnimationFrame
 		return f;
 	}
 
-	ZSAGMMatrix4 GetTRSMatrix()
+	ZSAGMMatrix4 GetTRSMatrix(ZSAnimation anim)
 	{
-
+		Vector3 angs = (self.angles.x * ((anim.flags & ZSAnimator.LF_FLIPX == 0 ? -1 : 1)), self.angles.y, self.angles.z);
+		angs = ZSAnimator.ReorderEulerToGuta(angs);
+		Vector3 pos = (self.pspOffsets.x, self.pspOffsets.y, 0);
+		Vector3 vecSc = (self.pspScale.x, self.pspScale.y, 1);
+		
+		// ORDER: Z Y X
+		let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), angs.z, angs.y, angs.x, vecSc);
+		return rotScMatrix;
 	}
 }
 
@@ -1174,6 +1181,7 @@ Class ZSAnimator : Thinker
 				foreach (k, v : it)
 				{
 					let f = currentAnimation.EvaluateFrame(k, currentAnimation.currentTicks, currentAnimation.currentTicks + abs(currentAnimation.playbackSpeed));
+					f.GetTRSMatrix(currentAnimation);
 					// f.PrintFrameInfo();
 					if (f)
 					{
