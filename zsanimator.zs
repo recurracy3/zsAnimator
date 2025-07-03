@@ -16,13 +16,15 @@ class ZSAnimationFrame
 	bool interpolate;
 	ZSAnimation anim;
 	string reference;
+	int parentPspId;
 	// ZSAnimationFrameNode node;
 	
 	int flags;
 	
 	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool layered = false,
 		string reference = "",
-		float zPos = 0.0)
+		float zPos = 0.0,
+		int parentPspId = ZSAnimator.None)
 	{
 		let frame = ZSAnimationFrame(New("ZSAnimationFrame"));
 		frame.frameNum = frameNum;
@@ -30,6 +32,7 @@ class ZSAnimationFrame
 		frame.angles = angles;
 		frame.pspOffsets = (pspOffsets.x, pspOffsets.y, zPos);
 		frame.pspScale = pspScale;
+		frame.parentPspId = parentPspId;
 		// if (!layered)
 		// {
 			// if (frame.pspScale.x < 0)
@@ -691,6 +694,72 @@ Class ZSAnimator : Thinker
 		anim.MakeFrameList();
 		return anim;
 	}
+
+	ZSAPSP MakeZSAPSP(int pspId)
+	{
+		ZSAPSP p = New("ZSAPSP");
+		p.pspId = pspId;
+		p.animator = self;
+		return p;
+	}
+
+	bool AddZSAPSPToDict(ZSAPSP zsap)
+	{
+		if (!zsaPspDict.CheckKey(zsap.pspId))
+		{
+			zsaPspDict.Insert(zsap.pspId, zsap);
+			return true;
+		}
+		return false;
+	}
+
+	void DestroyZSAPSP(int pspId)
+	{
+		let item = zsaPspDict.GetIfExists(pspId);
+		if (item)
+		{
+			zsaPspDict.Remove(pspId);
+			item.Destroy();
+		}
+	}
+
+	void MapAnimPSPs(PlayerInfo ply, ZSAnimation anim)
+	{
+		foreach(frame : anim.frames)
+		{
+			ZSAPSP zsap;
+			if (!zsaPspDict.CheckKey(frame.pspId))
+			{
+				let psp = ply.FindPSprite(frame.pspId);
+				if (!psp)
+				{
+					ThrowAbortException("Anim %s has an invalid psp %d", anim.GetClassName(), frame.pspId);
+				}
+				zsap = MakeZSAPSP(psp);
+				AddZSAPSPToDict(zsap);
+			}
+			else
+			{
+				zsap = zsaPspDict.Get(frame.pspId);
+			}
+
+			if (frame.parentPspId != ZSAnimator.None)
+			{
+				foreach(k, v : zsaPspDict)
+				{
+					if (v == zsap)
+					{
+						continue;
+					}
+
+					if (frame.parentPspId == v.pspId)
+					{
+						zsap.ParentTo(v);
+					}
+				}
+			}
+		}
+	}
 	
 	// This function can be used to start an animation directly and let ZSAnimator handle everything.
 	void StartAnimation(PlayerInfo ply, ZSAnimation anim, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0)
@@ -711,6 +780,7 @@ Class ZSAnimator : Thinker
 			// anim.currentNode = anim.lastNode;
 		// }
 		
+		MapAnimPSPs(ply, anim);
 		anim.LinkList();
 		
 		if (playbackSpeed < 0)
@@ -912,7 +982,7 @@ Class ZSAnimator : Thinker
 	}
 	
 	// Credits to dodopod
-	static Vector3 QuatToEuler(quat r)
+	static clearscope Vector3 QuatToEuler(quat r)
     {
         // Roll        
         double sinRCosP = 2 * (r.w * r.x + r.y * r.z);
@@ -935,7 +1005,7 @@ Class ZSAnimator : Thinker
         return (yaw, pitch, roll);
     }
 	
-	static Vector3 ReorderEulerToGuta(Vector3 angs)
+	static clearscope Vector3 ReorderEulerToGuta(Vector3 angs)
 	{
 		// ORDER IN ZSANIMATOR:
 		// ROLL == X
@@ -1165,6 +1235,21 @@ Class ZSAnimator : Thinker
 		StopAllAnimations();
 		super.OnDestroy();
 	}
+
+	void UpdateZSAPsps()
+	{
+		foreach(k,v:zsaPspDict)
+		{
+			if (!v.psp)
+			{
+				let psp = ply.FindPSprite(k);
+				if (psp)
+				{
+					v.psp = psp;
+				}
+			}
+		}
+	}
 	
 	override void Tick()
 	{
@@ -1204,6 +1289,7 @@ Class ZSAnimator : Thinker
 			}
 		}
 		
+		UpdateZSAPsps();
 		AdvanceAnimations();
 	}
 	
@@ -1227,6 +1313,9 @@ Class ZSAnimator : Thinker
 		let st = caller.FindState(lb, true);
 		psp.SetState(st);
 		psp.firstTic = true;
+
+		ZSAPSP zsaPsp = MakeZSAPSP(pspId);
+		AddZSAPSPToDict(zsaPsp);
 	}
 	
 	static ZSAnimationFrame GetCurrentPspAsFrame(PlayerInfo ply, int layerId)
