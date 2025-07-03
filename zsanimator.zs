@@ -24,7 +24,7 @@ class ZSAnimationFrame
 	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool layered = false,
 		string reference = "",
 		float zPos = 0.0,
-		int parentPspId = ZSAnimator.None)
+		int parent = ZSAnimator.None)
 	{
 		let frame = ZSAnimationFrame(New("ZSAnimationFrame"));
 		frame.frameNum = frameNum;
@@ -32,7 +32,7 @@ class ZSAnimationFrame
 		frame.angles = angles;
 		frame.pspOffsets = (pspOffsets.x, pspOffsets.y, zPos);
 		frame.pspScale = pspScale;
-		frame.parentPspId = parentPspId;
+		frame.parentPspId = parent;
 		// if (!layered)
 		// {
 			// if (frame.pspScale.x < 0)
