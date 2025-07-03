@@ -270,17 +270,6 @@ Class ZSAnimation
 			v.SetFlags(flags, set);
 		}
 	}
-
-
-	void ParentPSPTo(int pspId, int parentPspId, bool keepViewport = false)
-	{
-		let zpsp = zsaPspDict.GetIfExists(pspId);
-		let zpspP = zsaPspDict.GetIfExists(parentPspId);
-		if (zpsp && zpspP)
-		{
-			zpsp.ParentTo(zPspP, keepViewport);
-		}
-	}
 	
 	/*bool GotoNextFrame()
 	{
@@ -699,6 +688,16 @@ Class ZSAnimator : Thinker
 		p.pspId = pspId;
 		p.animator = self;
 		return p;
+	}
+
+	void ParentPSPTo(int pspId, int parentPspId, bool keepViewport = false)
+	{
+		let zpsp = zsaPspDict.GetIfExists(pspId);
+		let zpspP = zsaPspDict.GetIfExists(parentPspId);
+		if (zpsp && zpspP)
+		{
+			zpsp.ParentTo(zPspP, keepViewport);
+		}
 	}
 
 	bool AddZSAPSPToDict(ZSAPSP zsap)
