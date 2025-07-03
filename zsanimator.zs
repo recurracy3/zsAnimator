@@ -1030,7 +1030,7 @@ Class ZSAnimator : Thinker
 		// (0, 1, 0) == rotate by up/down axis (results in rotating yaw)
 		// (0, 0, 1) == rotate by side axis (results in rotating pitch)
 
-		return (angs.z, angs.y, angs.x);
+		return (angs.x*-1, angs.y, angs.z);
 	}
 	
 	void TransformPSPCorners(Psprite psp, ZSAnimation anim, ZSAnimationFrame f)

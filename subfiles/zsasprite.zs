@@ -47,21 +47,50 @@ class ZSAPSP
     {
         Vector3 t = (matrix.values[0][3], matrix.values[1][3], 0);
         ApplyTranslation(t);
+        TransformCorners(matrix);
 
-        if (!psp)
-        {
-            return;
-        }
+        // let [a1, a2, a3] = matrix.rotationToEulerAngles();
+        // // console.printf("%d r %.2f %.2f %.2f", pspId, a1, a2, a3);
+        // psp.rotation = a3;
 
-        let [a1, a2, a3] = matrix.rotationToEulerAngles();
-        // console.printf("%d r %.2f %.2f %.2f", pspId, a1, a2, a3);
-        psp.rotation = a3;
-
-        let sc = ZSanimator.GetScaleFromMatrix(matrix);
-        console.printf("%d sc %.2f %.2f %.2f", pspId, sc.x, sc.y, sc.z);
-        psp.scale.x = sc.x;
-        psp.scale.y = sc.y;
+        // let sc = ZSanimator.GetScaleFromMatrix(matrix);
+        // console.printf("%d sc %.2f %.2f %.2f", pspId, sc.x, sc.y, sc.z);
+        // psp.scale.x = sc.x;
+        // psp.scale.y = sc.y;
     }
+
+    play void TransformCorners(zsaGMMatrix4 matrix)
+    {
+		if (!psp || !psp.curstate) { return; }
+		let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
+		int w, h;
+		[w, h] = TexMan.GetSize(texid);
+		Vector2 sprsize = (w, h);
+		// Vector2 sprsize = TexMan.GetscaledSize(texid);
+		
+		Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
+		Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
+		Vector3 corner2 = (sprSize.x/2, -sprSize.y/2, 0);
+		Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
+
+        matrix.values[0][3] = 0;
+        matrix.values[1][3] = 0;
+        matrix.values[2][3] = 0;
+		
+		Vector3 v0 = matrix.multiplyVector3(corner0);
+		Vector3 v1 = matrix.multiplyVector3(corner1);
+		Vector3 v2 = matrix.multiplyVector3(corner2);
+		Vector3 v3 = matrix.multiplyVector3(corner3);
+		
+		Vector3 diff0 = v0 - corner0;
+		Vector3 diff1 = v1 - corner1;
+		Vector3 diff2 = v2 - corner2;
+		Vector3 diff3 = v3 - corner3;
+		psp.coord0 = diff0.xy;
+		psp.coord1 = diff1.xy;
+		psp.coord2 = diff2.xy;
+		psp.coord3 = diff3.xy;
+	}
 
     play void ApplyTranslation(Vector3 t)
     {
@@ -133,9 +162,7 @@ class ZSAPSP
     void SetTRS(Vector3 t, Vector3 r, Vector3 s)
     {
         self.localOffs = t;
-        console.printf("%d r %.2f %.2f %.2f", pspId, r.x, r.y, r.z);
         let reOrder = ZSAnimator.ReorderZSAToGuta(r);
-        console.printf("reor %.2f %.2f %.2f", reOrder.x, reOrder.y, reOrder.z);
         self.localAngs = (reOrder.x, reOrder.y, reOrder.z);
         self.localScale = s;
     }
@@ -150,41 +177,5 @@ class ZSAPSP
         {
             self.flags &= ~flags;
         }
-    }
-
-    void TransformCorners()
-    {
-        // if (!psp || !psp.curstate) { return; }
-		// let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
-		// int w, h;
-		// [w, h] = TexMan.GetSize(texid);
-		// Vector2 sprsize = (w, h);
-		// // Vector2 sprsize = TexMan.GetscaledSize(texid);
-		
-		// Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
-		// Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
-		// Vector3 corner2 = (sprSize.x/2, -sprSize.y/2, 0);
-		// Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
-		// Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 1);
-		
-		// Vector3 angs = (f.angles.x * ((anim.flags & ZSAnimator.LF_FLIPX == 0 ? -1 : 1)), f.angles.y, f.angles.z);
-		// angs = ZSAnimator.ReorderZSAToGuta(angs);
-		
-		// // ORDER: Z Y X
-		// let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), angs.z, angs.y, angs.x, vecSc);
-		
-		// Vector3 v0 = rotScMatrix.multiplyVector3(corner0);
-		// Vector3 v1 = rotScMatrix.multiplyVector3(corner1);
-		// Vector3 v2 = rotScMatrix.multiplyVector3(corner2);
-		// Vector3 v3 = rotScMatrix.multiplyVector3(corner3);
-		
-		// Vector3 diff0 = v0 - corner0;
-		// Vector3 diff1 = v1 - corner1;
-		// Vector3 diff2 = v2 - corner2;
-		// Vector3 diff3 = v3 - corner3;
-		// psp.coord0 = diff0.xy;
-		// psp.coord1 = diff1.xy;
-		// psp.coord2 = diff2.xy;
-		// psp.coord3 = diff3.xy;
     }
 }
