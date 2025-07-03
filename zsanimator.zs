@@ -730,12 +730,7 @@ Class ZSAnimator : Thinker
 			ZSAPSP zsap;
 			if (!zsaPspDict.CheckKey(frame.pspId))
 			{
-				let psp = ply.FindPSprite(frame.pspId);
-				if (!psp)
-				{
-					ThrowAbortException("Anim %s has an invalid psp %d", anim.GetClassName(), frame.pspId);
-				}
-				zsap = MakeZSAPSP(psp);
+				zsap = MakeZSAPSP(frame.pspId);
 				AddZSAPSPToDict(zsap);
 			}
 			else
