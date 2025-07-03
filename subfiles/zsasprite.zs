@@ -8,6 +8,7 @@ class ZSAPSP
         CORNER_BOTTOMRIGHT
     }
 
+    int flags;
     // The ID of this zsaPsp instance.
     int pspId;
     // The psprite this ZSAPSP instance wraps. For initialization this can be null but MUST be filled in by ZSAnimator directly after.
@@ -28,9 +29,51 @@ class ZSAPSP
     // If true, if this ZSAPSP is destroyed, destroy all child ZSAPSPs as well.
     bool collapseOnDestroy;
 
-    void ApplyTRSMatrix(zsaGMMatrix4 matrix)
+    play void ApplyToPSP()
     {
-        
+        let viewTrs = LocalTRSToViewportTRS();
+        ApplyTRSMatrix(viewTrs);
+    }
+
+    play void ApplyTRSMatrix(zsaGMMatrix4 matrix)
+    {
+        Vector3 t = (matrix.values[0][3], matrix.values[1][3], 0);
+        ApplyTranslation(t);
+    }
+
+    play void ApplyTranslation(Vector3 t)
+    {
+        if (!psp)
+        {
+            return;
+        }
+
+        bool flipx = flags & ZSAnimator.LF_FLIPX != 0;
+        float x, y;
+        psp.bPivotPercent = true;
+        psp.bAddWeapon = false;
+
+        if ((flags & ZSAnimator.LF_DontCenterPSP) == 0)
+        {
+            t.x = t.x + 160.0;
+            t.y = t.y + 100.0;
+        }
+        else
+        {
+            t.x = t.x;
+            t.y = t.y + (psp.id == PSP_WEAPON ? WEAPONTOP : 0);
+        }
+
+        self.psp.x = t.x * (flipx ? 1:-1);
+        self.psp.y = t.y;
+
+        psp.bInterpolate = !psp.firstTic;
+
+        if (!psp.bInterpolate)
+        {
+            self.psp.oldx = psp.x;
+            self.psp.oldy = psp.y;
+        }
     }
 
     ZSAGMMatrix4 LocalTRSToViewportTRS()
@@ -81,6 +124,19 @@ class ZSAPSP
         self.localAngs = r;
         self.localScale = s;
     }
+
+    void SetFlags(int flags, bool set = true)
+    {
+        if (set)
+        {
+            self.flags |= flags;
+        }
+        else
+        {
+            self.flags &= ~flags;
+        }
+    }
+
     void TransformCorners()
     {
         // if (!psp || !psp.curstate) { return; }
