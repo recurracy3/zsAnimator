@@ -70,6 +70,11 @@ class ZSAnimationFrame
 		f.reference = self.reference;
 		return f;
 	}
+
+	ZSAGMMatrix4 GetTRSMatrix()
+	{
+
+	}
 }
 
 class ZSAnimationFrameNode
@@ -669,6 +674,8 @@ Class ZSAnimator : Thinker
 	bool manual;
 	bool forceDisableInterpolation;
 	Array<ZSAnimation> currentAnimations;
+
+	Map<int, ZSAPSP> zsaPspDict;
 	
 	static ZSAnimation GetAnimationFromClassName(Class<ZSanimation> animationClass)
 	{
@@ -921,7 +928,7 @@ Class ZSAnimator : Thinker
         return (yaw, pitch, roll);
     }
 	
-	Vector3 ReorderToGuta(Vector3 angs)
+	static Vector3 ReorderEulerToGuta(Vector3 angs)
 	{
 		// ORDER IN ZSANIMATOR:
 		// ROLL == X
@@ -966,8 +973,9 @@ Class ZSAnimator : Thinker
 		Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 1);
 		
 		Vector3 angs = (f.angles.x * ((anim.flags & ZSAnimator.LF_FLIPX == 0 ? -1 : 1)), f.angles.y, f.angles.z);
-		angs = ReorderToGuta(angs);
+		angs = ZSAnimator.ReorderEulerToGuta(angs);
 		
+		// ORDER: Z Y X
 		let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), angs.z, angs.y, angs.x, vecSc);
 		
 		Vector3 v0 = rotScMatrix.multiplyVector3(corner0);
