@@ -695,6 +695,7 @@ Class ZSAnimator : Thinker
 		if (!zsaPspDict.CheckKey(zsap.pspId))
 		{
 			zsaPspDict.Insert(zsap.pspId, zsap);
+			DumpDictionary();
 			return true;
 		}
 		return false;
@@ -745,6 +746,12 @@ Class ZSAnimator : Thinker
 			else
 			{
 				zsap = zsaPspDict.Get(frame.pspId);
+			}
+
+			let psp = ply.FindPSPrite(frame.pspId);
+			if (psp)
+			{
+				zsap.psp = psp;
 			}
 
 			if (frame.parentPspId != ZSAnimator.None)
@@ -1374,6 +1381,14 @@ Class ZSAnimator : Thinker
 		// anim.frames.Push(ZSAnimationFrame.Create(psp.id, 0, (curAng, 0, 0), curPos, curSc, interpolate));
 		// anim.frames.Push(ZSAnimationFrame.Create(psp.id, tics, (ang, 0, 0), pos, sc, interpolate));
 		StartAnimation(ply, anim);
+	}
+
+	void DumpDictionary()
+	{
+		foreach(k, v : self.zsaPspDict)
+		{
+			console.printf("%d has psp %d", k, v.psp != NULL);
+		}
 	}
 }
 

@@ -31,6 +31,14 @@ class ZSAPSP
 
     play void ApplyToPSP()
     {
+        if (!psp)
+        {
+            return;
+        }
+        
+        self.psp.bPivotPercent = true;
+        self.psp.bAddWeapon = false;
+		self.psp.pivot = (0.5,0.5);
         let viewTrs = LocalTRSToViewportTRS();
         ApplyTRSMatrix(viewTrs);
     }
@@ -39,6 +47,18 @@ class ZSAPSP
     {
         Vector3 t = (matrix.values[0][3], matrix.values[1][3], 0);
         ApplyTranslation(t);
+
+        if (!psp)
+        {
+            return;
+        }
+
+        let a = matrix.rotationToEulerAngles();
+        psp.rotation = a;
+
+        let sc = ZSanimator.GetScaleFromMatrix(matrix.Transpose());
+        psp.scale.x = sc.x;
+        psp.scale.y = sc.y;
     }
 
     play void ApplyTranslation(Vector3 t)
@@ -50,22 +70,23 @@ class ZSAPSP
 
         bool flipx = flags & ZSAnimator.LF_FLIPX != 0;
         float x, y;
-        psp.bPivotPercent = true;
-        psp.bAddWeapon = false;
 
-        if ((flags & ZSAnimator.LF_DontCenterPSP) == 0)
+        if (!(flags & ZSAnimator.LF_DontCenterPSP == ZSAnimator.LF_DontCenterPSP))
         {
-            t.x = t.x + 160.0;
-            t.y = t.y + 100.0;
+            x = t.x - 160.0;
+            y = t.y - 100.0;
         }
         else
         {
-            t.x = t.x;
-            t.y = t.y + (psp.id == PSP_WEAPON ? WEAPONTOP : 0);
+            x = t.x;
+            y = t.y + (psp.id == PSP_WEAPON ? WEAPONTOP : 0);
         }
 
-        self.psp.x = t.x * (flipx ? 1:-1);
-        self.psp.y = t.y;
+        x = x * (flipx ? 1:-1);
+        y = y * -1;
+
+        self.psp.x = x;
+        self.psp.y = y;
 
         psp.bInterpolate = !psp.firstTic;
 
@@ -83,14 +104,8 @@ class ZSAPSP
         if (parent)
         {
             let parentMatrix = parent.LocalTRSToViewportTRS();
-            let sc = ZSAnimator.GetScaleFromMatrix(parentMatrix);
-            console.printf("%d %.2f %.2f %.2f", parent.pspId, sc.x, sc.y, sc.z);
             ret = parentMatrix.multiplyMatrix(ret);
-            sc = ZSAnimator.GetScaleFromMatrix(ret);
-            console.printf("%d %.2f %.2f %.2f", parent.pspId, sc.x, sc.y, sc.z);
         }
-
-        let sc = ZSAnimator.GetScaleFromMatrix(ret);
         return ret;
     }
 
