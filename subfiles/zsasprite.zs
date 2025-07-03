@@ -8,23 +8,30 @@ class ZSAPSP
         CORNER_BOTTOMRIGHT
     }
 
-    // The psprite this ZSAPSP instance wraps.
+    // The ID of this zsaPsp instance.
+    int pspId;
+    // The psprite this ZSAPSP instance wraps. For initialization this can be null but MUST be filled in by ZSAnimator on the first animation tic.
     PSprite psp;
     // The previous TRS matrix of this PSP, for interpolation.
     zsaGMMatrix4 prevTrsMatrix;
     // The current TRS matrix of this PSP.
     zsaGMMatrix4 trsMatrix;
+    // This psp's parent. Can be null.
     ZSAPSP parent;
+    // The children of this ZSAPSP.
+    Array<ZSAPSP> children;
+    // Pointer to the animator. Must not be null!
     ZSAnimator animator;
 
+    // If true, if this ZSAPSP is destroyed, destroy all child ZSAPSPs as well.
     bool collapseOnDestroy;
 
     void ApplyTRSMatrix(zsaGMMatrix4 matrix)
     {
-
+        
     }
 
-    ZSAGMMatrix4 LocalTRSToGlobalTRS()
+    ZSAGMMatrix4 LocalTRSToViewportTRS()
     {
         return NULL;
     }
@@ -34,13 +41,22 @@ class ZSAPSP
         return NULL;
     }
 
-    void ParentTo(ZSAPSP newParent, bool keepGlobal = false)
+    void ParentTo(ZSAPSP newParent, bool keepViewport = false)
     {
         self.parent = newParent;
+        if (newParent.children.Find(self) != newParent.children.Size())
+        {
+            newParent.children.Push(self);
+        }
     }
 
-    void Unparent(bool keepGlobal = false)
+    void Unparent(bool keepViewport = false)
     {
+        let myIndex = self.parent.children.Find(self);
+        if (myIndex != self.parent.children.Size())
+        {
+            self.parent.children.Delete(myIndex);
+        }
         self.parent = NULL;
     }
 
