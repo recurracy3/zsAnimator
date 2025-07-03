@@ -1016,31 +1016,21 @@ Class ZSAnimator : Thinker
         return (yaw, pitch, roll);
     }
 	
-	static clearscope Vector3 ReorderEulerToGuta(Vector3 angs)
+	static clearscope Vector3 ReorderZSAToGuta(Vector3 angs)
 	{
 		// ORDER IN ZSANIMATOR:
-		// ROLL == X
-		// YAW == Y
-		// PITCH == Z
+		// YAW, PITCH, ROLL
+		// (Y, Z, X)
 		
-		// ORDER OUT GUTAMATICS:
-		// YAW == X
-		// PITCH == Y
-		// ROLL == Z
+		// EXPECTED ORDER IN GUTAMATICS:
+		// YAW, PITCH, ROLL
+		// (Z, Y, X)
 		
-		// (1, 0, 0) == rotate on forwards axis (results in rotating roll)
-		// (0, 1, 0) == rotate by up axis (results in rotating yaw)
+		// (1, 0, 0) == rotate on forwards/back axis (results in rotating roll)
+		// (0, 1, 0) == rotate by up/down axis (results in rotating yaw)
 		// (0, 0, 1) == rotate by side axis (results in rotating pitch)
-		
-		Quat q1 = Quat.AxisAngle((1, 0, 0), angs.x);
-		Quat q2 = Quat.AxisAngle((0, 1, 0), angs.y);
-		Quat q3 = Quat.AxisAngle((0, 0, 1), angs.z);
-		Quat q = q1 * q2 * q3;
-		let outV = QuatToEuler(q);
-		
-		// Quat inQ = Quat.FromAngles(
-		
-		return outV;
+
+		return (angs.z, angs.y, angs.x);
 	}
 	
 	void TransformPSPCorners(Psprite psp, ZSAnimation anim, ZSAnimationFrame f)
@@ -1061,7 +1051,7 @@ Class ZSAnimator : Thinker
 		Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 1);
 		
 		Vector3 angs = (f.angles.x * ((anim.flags & ZSAnimator.LF_FLIPX == 0 ? -1 : 1)), f.angles.y, f.angles.z);
-		angs = ZSAnimator.ReorderEulerToGuta(angs);
+		angs = ZSAnimator.ReorderZSAToGuta(angs);
 		
 		// ORDER: Z Y X
 		let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), angs.z, angs.y, angs.x, vecSc);

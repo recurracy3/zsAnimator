@@ -53,10 +53,12 @@ class ZSAPSP
             return;
         }
 
-        let a = matrix.rotationToEulerAngles();
-        psp.rotation = a;
+        let [a1, a2, a3] = matrix.rotationToEulerAngles();
+        // console.printf("%d r %.2f %.2f %.2f", pspId, a1, a2, a3);
+        psp.rotation = a3;
 
-        let sc = ZSanimator.GetScaleFromMatrix(matrix.Transpose());
+        let sc = ZSanimator.GetScaleFromMatrix(matrix);
+        console.printf("%d sc %.2f %.2f %.2f", pspId, sc.x, sc.y, sc.z);
         psp.scale.x = sc.x;
         psp.scale.y = sc.y;
     }
@@ -99,7 +101,7 @@ class ZSAPSP
 
     ZSAGMMatrix4 LocalTRSToViewportTRS()
     {
-        let angs = self.localAngs;//ZSAnimator.ReorderEulerToGuta(self.localAngs);
+        let angs = self.localAngs;//ZSAnimator.ReorderZSAToGuta(self.localAngs);
         ZSAGMMatrix4 ret = zsaGMMatrix4.CreateTRSEuler((localOffs.x, localOffs.y, 0), angs.x, angs.y, angs.z, (localScale.x, localScale.y, 1));
         if (parent)
         {
@@ -107,11 +109,6 @@ class ZSAPSP
             ret = parentMatrix.multiplyMatrix(ret);
         }
         return ret;
-    }
-
-    ZSAGMMatrix4 GetTRSMatrixFromFrame(ZSAnimationFrame frame)
-    {
-        return NULL;
     }
 
     void ParentTo(ZSAPSP newParent, bool keepViewport = false)
@@ -136,7 +133,10 @@ class ZSAPSP
     void SetTRS(Vector3 t, Vector3 r, Vector3 s)
     {
         self.localOffs = t;
-        self.localAngs = r;
+        console.printf("%d r %.2f %.2f %.2f", pspId, r.x, r.y, r.z);
+        let reOrder = ZSAnimator.ReorderZSAToGuta(r);
+        console.printf("reor %.2f %.2f %.2f", reOrder.x, reOrder.y, reOrder.z);
+        self.localAngs = (reOrder.x, reOrder.y, reOrder.z);
         self.localScale = s;
     }
 
@@ -168,7 +168,7 @@ class ZSAPSP
 		// Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 1);
 		
 		// Vector3 angs = (f.angles.x * ((anim.flags & ZSAnimator.LF_FLIPX == 0 ? -1 : 1)), f.angles.y, f.angles.z);
-		// angs = ZSAnimator.ReorderEulerToGuta(angs);
+		// angs = ZSAnimator.ReorderZSAToGuta(angs);
 		
 		// // ORDER: Z Y X
 		// let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), angs.z, angs.y, angs.x, vecSc);
