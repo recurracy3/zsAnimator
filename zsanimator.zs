@@ -1,5 +1,34 @@
+    // ZSAnimator: A ZScript animation framework, allowing you to make first-person animations in blender usable in GZDoom.
+    // Copyright (C) 2025 Recurracy
+
+    // This program is free software: you can redistribute it and/or modify
+    // it under the terms of the GNU General Public License as published by
+    // the Free Software Foundation, either version 3 of the License, or
+    // (at your option) any later version.
+
+    // This program is distributed in the hope that it will be useful,
+    // but WITHOUT ANY WARRANTY; without even the implied warranty of
+    // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    // GNU General Public License for more details.
+
+    // You should have received a copy of the GNU General Public License
+    // along with this program.  If not, see https://www.gnu.org/licenses.
+
+/////////////////////////////////////////
+// TODO:
+// Rewrite ZSAnimator a little bit to be less
+// naive and dependant on the Blender framework. Retain the current functionality
+// but add an extra class that inherits ZSAnimator that cuts out a lot of the bloat.
+/////////////////////////////////////////
+
+// This class is made and filled in by the Blender plugin.
+// A frame can manipulate either the view, reference or a psprite.
 class ZSAnimationFrame
 {
+	// Currently unused.
+	// Could be used to determine which values to omit from the automatic animation
+	// pipeline, I guess?
+	// Should probably be a mask or something.
 	enum FrameValue
 	{
 		ZSAFV_Position,
@@ -7,14 +36,20 @@ class ZSAnimationFrame
 		ZSAFV_Scale
 	}
 	
+	// ID of the psprite this AnimationFrame will change.
 	int pspId;
+	// Frame number of this frame.
 	int frameNum;
-	int firstFrameNum;
+	// This allows me to skew a sprite if necessary.
 	Vector3 angles;
+	// Z is the depth of the sprite and may be used later for perspective, and perhaps even automagically changing the psprite layer dynamically so it gets drawn over and under other sprites.
 	Vector3 pspOffsets;
+	// Scale of the psprite.
 	Vector2 pspScale;
+	// Whether interpolation has been enabled in the animation created by blender.
 	bool interpolate;
 	ZSAnimation anim;
+	// This contains a 
 	string reference;
 	int parentPspId;
 

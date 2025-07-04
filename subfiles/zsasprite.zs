@@ -1,4 +1,5 @@
-// This 
+// This class is a wrapper that allows you to retain a full TRS matrix in order to skew a sprite with Gutamatics' matrix functions.
+// It's not a Thinker so it doesn't do any logic for you, you can either do that in ZSAnimator or your own classes.
 class ZSAPSP
 {
     enum corners
@@ -29,8 +30,16 @@ class ZSAPSP
     Vector3 localOffs;
     Vector3 localAngs;
     Vector3 localScale;
-    // If true, if this ZSAPSP is destroyed, destroy all child ZSAPSPs as well.
+    // If true, if this ZSAPSP is destroyed through any means, destroy all child ZSAPSPs as well.
     bool collapseOnDestroy;
+
+    // If the psp is destroyed by any means destroy this ZSAPSP as well.
+    bool destroyIfPSPDestroyed;
+
+    static ZSAPsp GetFromPSP(PSprite psp, ZSAnimator animator)
+    {
+        let zsaPsp = animator.GetifExists(pspId)
+    }
 
     // This function applies the ZSAPSP fully to the psprite.
     // Does everything for you. Is called automatically by ZSAnimator through the StartAnimation pipeline.
