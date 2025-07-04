@@ -643,7 +643,7 @@ Class ZSAnimator : Thinker
 	}
 
 	// Things are bound to get really fucking muddy if I keep changing things around so this is here to maybe make things backwards compatible. 
-	const ZSAVERSION 1.1;
+	const ZSAVERSION = 1.1;
 	
 	PlayerInfo ply;
 	// This prevents the Tick() from doing everything for you so you can do things yourself if you so desire.
@@ -1291,13 +1291,14 @@ Class ZSAnimator : Thinker
 	// Preferred to call this over A_Overlay. Returns a pointer to the (newly made) ZSAPSP instance.
 	play ZSAPSP CreateOverlay(int pspId, Actor caller, StateLabel lb = NULL)
 	{
-		if (!ply) { return; }
+		if (!ply) { return NULL; }
 		//ply.mo.A_Overlay(pspId, lb, noOverride);
 		PSprite psp = ply.GetPSprite(pspId);
-		if (!psp) { return; }
+		if (!psp) { return NULL; }
 		psp.caller = caller;
 		let st = caller.FindState(lb, true);
 		psp.SetState(st);
+		// Fucky things are gonna happen otherwise.
 		psp.firstTic = true;
 
 		ZSAPSP zsaPsp = NULL;

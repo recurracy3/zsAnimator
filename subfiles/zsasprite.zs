@@ -73,7 +73,7 @@ class ZSAPSP
     // This function applies the ZSAPSP fully to the psprite.
     // Does everything for you. Is called automatically by ZSAnimator through the StartAnimation pipeline.
     // This means setting the position of the Psprite,
-    // and skewing its corners depending on its size.
+    // and skewing its corners depending on the sprite's size.
     // This does not adjust the actual .rotation and .scale of the psprite.
     play void ApplyToPSP()
     {
@@ -83,6 +83,23 @@ class ZSAPSP
         let viewTrs = LocalTRSToViewportTRS();
         self.trsMatrix = viewTrs;
         ApplyTRSMatrix(viewTrs);
+
+        // !firstTic makes all transformations done, including Coord0-3, interpolate.
+        // Setting it to true makes it not interpolate.
+        // I think.
+        if (!self.psp.bInterpolate && !self.psp.firstTic)
+        {
+            self.psp.firstTic = true;
+        }
+    }
+
+    play void SetInterpolation(bool interp)
+    {
+        self.psp.bInterpolate = interp;
+        if (!self.psp.bInterpolate && !self.psp.FirstTic)
+        {
+            self.psp.FirstTic = true;
+        }
     }
 
     // Fully applies a TRS matrix to the PSprite.
