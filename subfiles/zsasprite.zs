@@ -179,16 +179,17 @@ class ZSAPSP
     }
 
     // Convert the local offsets into a viewport TRS.
-    // This includes multiplying the local TRS by the parents' local TRS recursively.
-    clearscope ZSAGMMatrix4 LocalTRSToViewportTRS()
+    // This includes multiplying the local TRS by the parents' local TRS recursively, if the depth arg is > -1 (-1 by default)
+    // Returns a full TRS matrix that can be applied to the viewport.
+    clearscope ZSAGMMatrix4 LocalTRSToViewportTRS(int depth = -1)
     {
         // Todo: applying a perspective matrix, perhaps? Might be interesting.
         // This would require the Z part of localOffs to not be omitted.
         let angs = self.localAngs;
         ZSAGMMatrix4 ret = zsaGMMatrix4.CreateTRSEuler((localOffs.x, localOffs.y, 0), angs.x, angs.y, angs.z, (localScale.x, localScale.y, 1));
-        if (parent)
+        if (parent && depth > 0)
         {
-            let parentMatrix = parent.LocalTRSToViewportTRS();
+            let parentMatrix = parent.LocalTRSToViewportTRS(depth-1);
             ret = parentMatrix.multiplyMatrix(ret);
         }
         return ret;
