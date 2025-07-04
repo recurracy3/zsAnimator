@@ -163,6 +163,7 @@ class ZSAPSP
     {
         self.psp.x = t.x;
         self.psp.y = t.y;
+        console.printf("%d %.2f %.2f", pspid, t.x, t.y);
         // Immediately set the oldx and y if interpolation is disabled otherwise it will still interpolate and we don't want that in this case.
         if (psp.firstTic)
         {

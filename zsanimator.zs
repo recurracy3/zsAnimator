@@ -1151,6 +1151,9 @@ Class ZSAnimator : Thinker
 				t = f.pspOffsets;
 				r = f.angles;
 				s = (f.pspScale.x, f.pspScale.y, 1);
+				console.printf("t %.2f %.2f %.2f", t.x,t.y,t.z);
+				console.printf("r %.2f %.2f %.2f", r.x,r.y,r.z);
+				console.printf("s %.2f %.2f", s.x, s.y);
 			}
 			else
 			{
