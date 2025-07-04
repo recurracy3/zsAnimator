@@ -34,6 +34,9 @@ class ZSAPSP
 
     // This function applies the ZSAPSP fully to the psprite.
     // Does everything for you. Is called automatically by ZSAnimator through the StartAnimation pipeline.
+    // This means setting the position of the Psprite,
+    // and skewing its corners depending on its size.
+    // This does not adjust the actual .rotation and .scale of the psprite.
     play void ApplyToPSP()
     {
         if (!psp)
@@ -134,10 +137,11 @@ class ZSAPSP
     }
 
     // Convert the local offsets into a viewport TRS.
-    // This includes multiplying the local TRS by the parents' local TRS.
+    // This includes multiplying the local TRS by the parents' local TRS recursively.
     ZSAGMMatrix4 LocalTRSToViewportTRS()
     {
         // Todo: applying a perspective matrix, perhaps? Might be interesting.
+        // This would require the Z part of localOffs to not be omitted.
         let angs = self.localAngs;
         ZSAGMMatrix4 ret = zsaGMMatrix4.CreateTRSEuler((localOffs.x, localOffs.y, 0), angs.x, angs.y, angs.z, (localScale.x, localScale.y, 1));
         if (parent)
