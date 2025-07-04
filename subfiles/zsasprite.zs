@@ -30,6 +30,7 @@ class ZSAPSP
     int pspId;
     // The psprite this ZSAPSP instance wraps. For initialization this can be null but MUST be filled in by ZSAnimator directly after.
     PSprite psp;
+    bool hasPsp;
     // Store Viewport TRS matrices.
     zsaGMMatrix4 trsMatrix, prevTRSMatrix;
     int parentPspId;
@@ -53,8 +54,8 @@ class ZSAPSP
     // TODO
     bool isAdditive;
 
-    // If the psp is destroyed through Destroy() (check for bDestroyed) destroy this ZSAPSP as well if this is true.
-    bool destroyIfPSPDestroyed;
+    // If the psp has become NULL destroy it.
+    bool destroyIfPSPbecameNull;
 
     static ZSAPsp GetFromPSP(PSprite psp, ZSAnimator animator)
     {
@@ -77,8 +78,25 @@ class ZSAPSP
     // This means setting the position of the Psprite,
     // and skewing its corners depending on the sprite's size.
     // This does not adjust the actual .rotation and .scale of the psprite.
-    play void ApplyToPSP()
+    virtual play void ApplyToPSP()
     {
+        if (!hasPsp && psp != NULL)
+        {
+            hasPsp = true;
+        }
+        if (hasPsp && psp == NULL)
+        {
+            if (destroyIfPSPbecameNull)
+            {
+                self.Destroy();
+            }
+        }
+        if (bDestroyed)
+        {
+            return;
+        }
+
+        console.printf("applying %d", pspId);
         self.prevOffs = self.localOffs;
         self.prevAngs = self.localAngs;
         self.prevScale = self.localScale;
@@ -99,7 +117,7 @@ class ZSAPSP
         }
     }
 
-    play void SetInterpolation(bool interp)
+    virtual play void SetInterpolation(bool interp)
     {
         self.psp.bInterpolate = interp;
         if (!self.psp.bInterpolate && !self.psp.FirstTic)
@@ -109,7 +127,7 @@ class ZSAPSP
     }
 
     // Fully applies a TRS matrix to the PSprite.
-    play void ApplyTRSMatrix(zsaGMMatrix4 matrix)
+    virtual play void ApplyTRSMatrix(zsaGMMatrix4 matrix)
     {
         Vector3 t = (matrix.values[0][3], matrix.values[1][3], 0);
         ApplyTranslation(t);
@@ -118,7 +136,7 @@ class ZSAPSP
 
     // Transform the corners of the psprite. This allows you to skew a sprite if desired, seperately of 
     // the psprite's own rotation and scale.
-    play void TransformCorners(zsaGMMatrix4 matrix)
+    virtual play void TransformCorners(zsaGMMatrix4 matrix)
     {
 		let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
 		int w, h;
@@ -154,7 +172,7 @@ class ZSAPSP
 
     // Applies a translation to the PSP.
     // Mind you 'translation' in this case DOES NOT MEAN 'translation' in GZDoom terms, which is related to recoloring.
-    play void ApplyTranslation(Vector3 t)
+    virtual play void ApplyTranslation(Vector3 t)
     {
         // Todo: Take out the flipx handling and similar stuff and move it to the ZSAnimation pipeline, as it's related to the Blender plugin.
         // bool flipx = flags & ZSAnimator.LF_FLIPX != 0;
@@ -190,7 +208,7 @@ class ZSAPSP
     // Convert the local offsets into a viewport TRS.
     // This includes multiplying the local TRS by the parents' local TRS recursively, if the depth arg is > -1 (-1 by default)
     // Returns a full TRS matrix that can be applied to the viewport.
-    clearscope ZSAGMMatrix4 LocalTRSToViewportTRS(int depth = -1)
+    virtual clearscope ZSAGMMatrix4 LocalTRSToViewportTRS(int depth = -1)
     {
         // Todo: applying a perspective matrix, perhaps? Might be interesting.
         // This would require the Z part of localOffs to not be omitted.
@@ -207,7 +225,7 @@ class ZSAPSP
     // Parent this ZSAPSP to a new PSP.
     // Todo: make keepViewport convert the viewport transform
     // into local transform... Somehow.
-    void ParentTo(ZSAPSP newParent, bool keepViewport = false)
+    virtual void ParentTo(ZSAPSP newParent, bool keepViewport = false)
     {
         self.parent = newParent;
         if (newParent.children.Find(self) != newParent.children.Size())
@@ -219,7 +237,7 @@ class ZSAPSP
     // Unparent this ZSAPSP.
     // Todo: make keepViewport retain the viewport transform
     // when unparenting... somehow...
-    void Unparent(bool keepViewport = false)
+    virtual void Unparent(bool keepViewport = false)
     {
         let myIndex = self.parent.children.Find(self);
         if (myIndex != self.parent.children.Size())
@@ -231,7 +249,7 @@ class ZSAPSP
 
     // Set the translation, rotation and scaling of this PSP.
     // Pretty much a wrapper function that allows you to do it all in one go.
-    void SetTRS(Vector3 t, Vector3 r, Vector3 s)
+    virtual void SetTRS(Vector3 t, Vector3 r, Vector3 s)
     {
         self.localOffs = t;
         self.localAngs = r;
