@@ -811,17 +811,10 @@ Class ZSAnimator : Thinker
 
 			if (frame.parentPspId != ZSAnimator.None)
 			{
-				foreach(k, v : zsaPspDict)
+				let potParent = zsaPspDict.GetIfExists(frame.parentPspId);
+				if (potParent)
 				{
-					if (v == zsap)
-					{
-						continue;
-					}
-
-					if (frame.parentPspId == v.pspId)
-					{
-						zsap.ParentTo(v);
-					}
+					zsap.ParentTo(potParent);
 				}
 			}
 		}
@@ -835,7 +828,7 @@ Class ZSAnimator : Thinker
 		self.ply = ply;
 		anim.currentAnimator = self;
 		
-		//MapAnimPSPs(ply, anim);
+		MapAnimPSPs(ply, anim);
 		anim.LinkList();
 		
 		if (playbackSpeed < 0)
@@ -1088,83 +1081,6 @@ Class ZSAnimator : Thinker
 		psp.coord3 = diff3.xy;
 	}
 	
-	// Deprecated
-	play void ApplyPSP(ZSanimation anim, ZSanimationFrame f)
-	{
-		let psp = ply.FindPSprite(f.pspId);
-		bool flipx = (anim.flags & ZSAnimator.LF_FlipX) != 0;
-			
-		if (psp)
-		{
-			psp.bPivotPercent = true;
-			let xOffs = f.pspOffsets.x*(flipx ? 1 : -1);
-			let yOffs = f.pspOffsets.y*-1;//-WEAPONTOP;
-			psp.bAddWeapon = false;
-			if (!psp.bAddWeapon)
-			{
-				//yOffs += WEAPONTOP/1.2;
-				//yOffs /= 1.2;
-			}
-			
-			psp.bInterpolate = !psp.firstTic && f.interpolate;
-			
-			double x, y;
-			
-			// if ((f.flags & ZSAnimator.LF_Additive) != 0)
-			// {
-			// 	x = psp.x + xOffs;
-			// 	y = psp.y + yOffs;
-			// }
-			// else
-			// {
-			// 	if ((f.flags & ZSAnimator.LF_DontCenterPSP) == 0)
-			// 	{
-			// 		x = xOffs + 160.0;
-			// 		y = yOffs + 100.0;
-			// 	}
-			// 	else
-			// 	{
-			// 		x = xOffs;
-			// 		y = yOffs + (f.pspId == PSP_WEAPON ? WEAPONTOP : 0);
-			// 	}
-			// }
-			if (!psp.bInterpolate)
-			{
-				psp.oldx = psp.x;
-				psp.oldy = psp.y;
-			}
-			
-			SetPSPPosition(psp, (x, y));
-			
-			// if (f.flipy || anim.flipAnimX)
-			// {
-				// psp.bflip = true;
-			// }
-			// else
-			// {
-				// psp.bflip = false;
-			// }
-			psp.pivot = (0.5,0.5);
-			
-			if (flipx)
-			{
-				f.pspScale = (f.pspScale.x * -1, f.pspScale.y * 1);
-			}
-			
-			Vector2 sc;
-			Double ang;
-			// if ((f.flags & ZSAnimator.LF_ADDITIVE) != 0)
-			// {
-			// 	sc = (psp.scale.x + f.pspScale.x, psp.scale.y + f.pspScale.y);
-			// 	ang = psp.rotation + f.angles.x;
-			// }
-			
-			// SetPSPScale(psp, sc);
-			// SetPSPRotation(psp, ang);
-			TransformPSPCorners(psp, anim, f);
-		}
-	}
-	
 	// Todo: make additive functional again
 	void ApplyView(ZSAnimation anim, ZSAnimationFrame f)
 	{
@@ -1240,7 +1156,7 @@ Class ZSAnimator : Thinker
 		{
 			ApplyView(anim, f);
 		}
-		else if (f.pspId != ZSAnimator.None)
+		else if (f.pspId != ZSAnimator.None && !f.reference || f.reference.Length() <= 0)
 		{
 			let zsap = zsaPspDict.GetIfExists(f.pspId);
 			if (!zsap)
@@ -1267,8 +1183,13 @@ Class ZSAnimator : Thinker
 			}
 			// Due to an error in my blender files that I caught too late and cannot be arsed 
 			// to fix, the angles need to be re-ordered.
+			int flags = anim.flags;
+			if (zsap.parent)
+			{
+				flags |= ZSAnimator.LF_DontCenterPSP;
+			}
 			let reorder = ZSAnimator.ReorderZSAToGuta(f.angles);
-			let [t,r,s] = CalculateTRS(f.pspOffsets, f.angles, (f.pspScale.x, f.pspScale.y, 1));
+			let [t,r,s] = CalculateTRS(f.pspOffsets, f.angles, (f.pspScale.x, f.pspScale.y, 1), flags);
 			r = ZSAnimator.ReorderZSAToGuta(r);
 			zsap.SetTRS(t,r,s);
 			zsap.ApplyToPSP();
@@ -1319,6 +1240,11 @@ Class ZSAnimator : Thinker
 		foreach(k, v : zsaPspDict)
 		{
 			bool found = false;
+			if (!v.GetCleanupNeeded())
+			{
+				continue;
+			}
+
 			if (v == NULL || v.bDestroyed)
 			{
 				garbage.Insert(k, v);

@@ -92,7 +92,6 @@ class ZSAPSP
         // I think.
         if (!self.psp.bInterpolate && !self.psp.firstTic)
         {
-            console.printf("setting firsttic for %d", pspId);
             self.psp.firstTic = true;
         }
 
@@ -101,11 +100,9 @@ class ZSAPSP
 
     virtual play void SetInterpolation(bool interp)
     {
-        console.printf("%d set interp %d firsttic %d", pspId, interp);
         self.psp.bInterpolate = interp;
         if (!self.psp.bInterpolate && !self.psp.FirstTic)
         {
-            console.printf("making firsstic true for %d", pspId);
             self.psp.FirstTic = true;
         }
     }
@@ -196,7 +193,7 @@ class ZSAPSP
     }
 
     // Convert the local offsets into a viewport TRS.
-    // This includes multiplying the local TRS by the parents' local TRS recursively, if the depth arg is > -1 (-1 by default)
+    // This includes multiplying the local TRS by the parents' local TRS recursively.
     // Returns a full TRS matrix that can be applied to the viewport.
     virtual clearscope ZSAGMMatrix4 LocalTRSToViewportTRS(int depth = -1)
     {
@@ -204,7 +201,7 @@ class ZSAPSP
         // This would require the Z part of localOffs to not be omitted.
         let angs = self.localAngs;
         ZSAGMMatrix4 ret = zsaGMMatrix4.CreateTRSEuler((localOffs.x, localOffs.y, 0), angs.x, angs.y, angs.z, (localScale.x, localScale.y, 1));
-        if (parent && depth > 0)
+        if (parent && (depth <= -1 || depth > 0))
         {
             let parentMatrix = parent.LocalTRSToViewportTRS(depth-1);
             ret = parentMatrix.multiplyMatrix(ret);
@@ -246,9 +243,22 @@ class ZSAPSP
         self.localScale = s;
     }
 
+    virtual bool GetCleanupNeeded()
+    {
+        if (psp && psp.firsttic)
+        {
+            return false;
+        }
+
+        if (!psp && self.parentPspId != ZSAnimator.None)
+        {
+            return true;
+        }
+        return false;
+    }
+
     override void OnDestroy()
     {
-        console.printf("destroying %d", pspid);
         if (destroyCascade)
         {
             foreach(c : children)
