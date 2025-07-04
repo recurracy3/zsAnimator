@@ -30,8 +30,8 @@ class ZSAPSP
     int pspId;
     // The psprite this ZSAPSP instance wraps. For initialization this can be null but MUST be filled in by ZSAnimator directly after.
     PSprite psp;
-    // The current Viewport TRS matrix of this PSP.
-    zsaGMMatrix4 trsMatrix;
+    // Store Viewport TRS matrices.
+    zsaGMMatrix4 trsMatrix, prevTRSMatrix;
     int parentPspId;
     // This psp's parent. Can be null.
     ZSAPSP parent;
@@ -42,11 +42,16 @@ class ZSAPSP
 
     // Local transform information. I should probably figure out a way to determine the order these are stored in.
     // Reason for that is because in Blender animations are stored as -X, Y, Z. That's not always desirable.
-    Vector3 localOffs;
-    Vector3 localAngs;
-    Vector3 localScale;
+    Vector3 localOffs, localAngs, localScale;
+    // Previous transform information.
+    Vector3 prevOffs, prevAngs, prevScale;
     // If true, if this ZSAPSP is destroyed through any means, destroy all child ZSAPSPs as well.
     bool collapseOnDestroy;
+
+    // If true the result of the TRS matrix gets *added* to the PSP instead of hard-setting it.
+    // Big fucking can of worms and I'm not sure if I can get it working right. We'll see.
+    // TODO
+    bool isAdditive;
 
     // If the psp is destroyed through Destroy() (check for bDestroyed) destroy this ZSAPSP as well if this is true.
     bool destroyIfPSPDestroyed;
@@ -74,6 +79,10 @@ class ZSAPSP
     // This does not adjust the actual .rotation and .scale of the psprite.
     play void ApplyToPSP()
     {
+        self.prevOffs = self.localOffs;
+        self.prevAngs = self.localAngs;
+        self.prevScale = self.localScale;
+
         self.psp.bPivotPercent = true;
         self.psp.bAddWeapon = false;
 		self.psp.pivot = (0.5,0.5);
@@ -148,25 +157,25 @@ class ZSAPSP
     play void ApplyTranslation(Vector3 t)
     {
         // Todo: Take out the flipx handling and similar stuff and move it to the ZSAnimation pipeline, as it's related to the Blender plugin.
-        bool flipx = flags & ZSAnimator.LF_FLIPX != 0;
-        float x, y;
+        // bool flipx = flags & ZSAnimator.LF_FLIPX != 0;
+        // float x, y;
 
-        if (!(flags & ZSAnimator.LF_DontCenterPSP == ZSAnimator.LF_DontCenterPSP))
-        {
-            x = t.x - 160.0;
-            y = t.y - 100.0;
-        }
-        else
-        {
-            x = t.x;
-            y = t.y + (psp.id == PSP_WEAPON ? WEAPONTOP : 0);
-        }
+        // if (!(flags & ZSAnimator.LF_DontCenterPSP == ZSAnimator.LF_DontCenterPSP))
+        // {
+        //     x = t.x - 160.0;
+        //     y = t.y - 100.0;
+        // }
+        // else
+        // {
+        //     x = t.x;
+        //     y = t.y + (psp.id == PSP_WEAPON ? WEAPONTOP : 0);
+        // }
 
-        x = x * (flipx ? 1:-1);
-        y = y * -1;
+        // x = x * (flipx ? 1:-1);
+        // y = y * -1;
 
-        self.psp.x = x;
-        self.psp.y = y;
+        self.psp.x = t.x;
+        self.psp.y = t.y;
 
         // psp.bInterpolate = !psp.firstTic;
 

@@ -243,6 +243,8 @@ Class ZSAnimation
 	virtual void MakeFrameList() { }
 	// This function is filled in by the blender plugin as well, sets things like frame count and stuff.
 	virtual void Initialize() { }
+
+	// Link up the node linked list.
 	void LinkList()
 	{
 		foreach(frame : frames)
@@ -619,7 +621,7 @@ Class ZSAnimator : Thinker
 		LF_AdditiveNoPSP = 1 << 1, // When used in conjunction with LF_Additive, ZSAnimator does not apply the current PSPrite offsets but purely uses the delta between frames.
 		LF_DontCenterPSP = 1 << 2, // When set, the PSPrite will not be centered automatically.
 		LF_FlipX = 1 << 3, // Can be applied to individual frames. If applied to animations, flip the animation rotations and positions.
-		LF_FlipY = 1 << 4 // Same as aboves
+		LF_FlipY = 1 << 4 // Same as above.
 	}
 
 	// Things are bound to get really fucking muddy if I keep changing things around so this is here to maybe make things backwards compatible. 
@@ -646,13 +648,44 @@ Class ZSAnimator : Thinker
 		return anim;
 	}
 
-	// Manipulate the supplied position, rotation and scale depending on the arguments.
+	// Manipulate the supplied position, rotation and scale depending on the layerFlags.
 	// Some animations need to be either flipped horizontally or vertically or whatever the hell and this takes care of that.
 	// Returns the position, rotation and scale as values ready to be supplied to a TRS matrix.
-	// Since Blender assumes the positions are in the middle of the screen (160,100) gets added to the X and Y if dontCenter is false (which it is not by default).
-	static clearscope Vector3, Vector3, Vector3 CalculateTRS(Vector3 translation, Vector3 rotation, Vector3 scale, bool flipAnimX = false, bool flipAnimY = false, bool dontCenter = false)
+	// Rotations are assumed to be in Blender format, meaning (-X, Y, Z) where X = roll, Y = yaw, Z = pitch.
+	// For flags, refer to ZSAnimation.ZSAFlags.
+	static clearscope Vector3, Vector3, Vector3 CalculateTRS(Vector3 translation, Vector3 rotation, Vector3 scale, int layerFlags = 0)
 	{
-		
+		Vector3 retT = translation;
+		Vector3 retR = rotation;
+		Vector3 retS = scale;
+
+		// Blender coords are flipped, so + == left/up, - == right/down.
+		// GZDoom PSP coords are + == right/down, - == left/up.
+		retT.x *= -1;
+		retT.y *= -1;
+
+		if (layerFlags & ZSAnimator.LF_FLIPX == ZSAnimator.LF_FLIPX)
+		{
+			// Whatever, flip the animation again.
+			retT.x *= -1;
+			retS.x *= -1;
+		}
+
+		if (layerFlags & ZSAnimator.LF_FLIPY == ZSAnimator.LF_FLIPY)
+		{
+			// flippy flip flip
+			retT.y *= -1;
+			reTS.y *= -1;
+		}
+
+		// Center the psprite (default behavior)
+		if (!(layerFlags & ZSAnimator.LF_DontCenterPSP == ZSAnimator.LF_DontCenterPSP))
+		{
+			retT.x += 160.0;
+			retT.y += 100.0;
+		}
+
+		return retT, retR, retS;
 	}
 
 	// Helper function.
@@ -718,22 +751,22 @@ Class ZSAnimator : Thinker
 		}
 	}
 
-	void SetPSPFlags(int pspId, int flags, bool set = true)
-	{
-		let zsap = zsaPspDict.GetIfExists(pspId);
-		if (!zsap || zsap.bDestroyed)
-		{
-			return;
-		}
-		if (set)
-		{
-			zsap.flags |= flags;
-		}
-		else
-		{
-			zsap.flags &= ~flags;
-		}
-	}
+	// void SetPSPFlags(int pspId, int flags, bool set = true)
+	// {
+	// 	let zsap = zsaPspDict.GetIfExists(pspId);
+	// 	if (!zsap || zsap.bDestroyed)
+	// 	{
+	// 		return;
+	// 	}
+	// 	if (set)
+	// 	{
+	// 		zsap.flags |= flags;
+	// 	}
+	// 	else
+	// 	{
+	// 		zsap.flags &= ~flags;
+	// 	}
+	// }
 
 	void MapAnimPSPs(PlayerInfo ply, ZSAnimation anim)
 	{
@@ -1197,12 +1230,22 @@ Class ZSAnimator : Thinker
 			let zsap = zsaPspDict.GetIfExists(f.pspId);
 			if (zsap.psp)
 			{
+				if (zsap.psp.bInterpolate && !f.interpolate)
+				{
+					zsap.SetInterpolation(false);
+				}
+				else if (!zsap.psp.bInterpolate && f.interpolate)
+				{
+					zsap.SetInterpolation(true);
+				}
 				zsap.psp.bInterpolate = f.interpolate;
 			}
 			// Due to an error in my blender files that I caught too late and cannot be arsed 
 			// to fix, the angles need to be re-ordered.
 			let reorder = ZSAnimator.ReorderZSAToGuta(f.angles);
-			zsap.SetTRS(f.pspOffsets, reorder, (f.pspScale.x, f.pspScale.y, 1));
+			let [t,r,s] = CalculateTRS(f.pspOffsets, f.angles, (f.pspScale.x, f.pspScale.y, 1));
+			r = ZSAnimator.ReorderZSAToGuta(r);
+			zsap.SetTRS(t,r,s);
 			zsap.ApplyToPSP();
 			LinkPSprite(anim, f, zsap.psp);
 		}
@@ -1218,7 +1261,8 @@ Class ZSAnimator : Thinker
 		super.OnDestroy();
 	}
 
-	// Pretty self explanatory, but this will update the ZSAPSP Dictionary. 
+	// Updates the zsapsp directory.
+	// Iterate through the player's psprites and make the zsapsp if necessary, then link it up.
 	void UpdateZSAPSPs()
 	{
 		if (!ply)
