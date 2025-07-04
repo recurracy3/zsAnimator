@@ -155,38 +155,15 @@ class ZSAPSP
     // Mind you 'translation' in this case DOES NOT MEAN 'translation' in GZDoom terms, which is related to recoloring.
     virtual play void ApplyTranslation(Vector3 t)
     {
-        // Todo: Take out the flipx handling and similar stuff and move it to the ZSAnimation pipeline, as it's related to the Blender plugin.
-        // bool flipx = flags & ZSAnimator.LF_FLIPX != 0;
-        // float x, y;
-
-        // if (!(flags & ZSAnimator.LF_DontCenterPSP == ZSAnimator.LF_DontCenterPSP))
-        // {
-        //     x = t.x - 160.0;
-        //     y = t.y - 100.0;
-        // }
-        // else
-        // {
-        //     x = t.x;
-        //     y = t.y + (psp.id == PSP_WEAPON ? WEAPONTOP : 0);
-        // }
-
-        // x = x * (flipx ? 1:-1);
-        // y = y * -1;
-
         self.psp.x = t.x;
         self.psp.y = t.y;
-
-        // psp.bInterpolate = !psp.firstTic;
-
         // Immediately set the oldx and y if interpolation is disabled otherwise it will still interpolate and we don't want that in this case.
         if (psp.firstTic)
         {
             psp.bInterpolate = false;
         }
-        console.printf("binterp: %d firsttic: %d", psp.bInterpolate, psp.firstTic);
         if (!psp.bInterpolate || psp.firstTic)
         {
-            console.printf("setting old");
             self.psp.oldx = psp.x;
             self.psp.oldy = psp.y;
         }
