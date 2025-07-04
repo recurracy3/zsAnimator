@@ -791,7 +791,8 @@ Class ZSAnimator : Thinker
 			{
 				continue;
 			}
-			if (frame.pspId == ZSAnimator.PlayerView) { continue; }
+			//if (frame.pspId == ZSAnimator.PlayerView) { continue; }
+			if (!IsPSPIDValid(frame.pspId)) { continue; }
 			ZSAPSP zsap;
 			if (!zsaPspDict.CheckKey(frame.pspId))
 			{
@@ -1156,6 +1157,7 @@ Class ZSAnimator : Thinker
 			zsap.SetTRS(t,r,s);
 			zsap.ApplyToPSP();
 			LinkPSprite(anim, f, zsap.psp);
+			zsap.UpdateLastTRS();
 		}
 		else if (f.pspId == ZSAnimator.None && f.reference)
 		{

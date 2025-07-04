@@ -44,7 +44,7 @@ class ZSAPSP
     // Reason for that is because in Blender animations are stored as -X, Y, Z. That's not always desirable.
     Vector3 localOffs, localAngs, localScale;
     // Previous transform information.
-    Vector3 prevOffs, prevAngs, prevScale;
+    Vector3 lastAnimOffs, lastAnimAngs, lastAnimScale;
 
     // If true the result of the TRS matrix gets *added* to the PSP instead of hard-setting it.
     // Big fucking can of worms and I'm not sure if I can get it working right. We'll see.
@@ -83,10 +83,6 @@ class ZSAPSP
     // This does not adjust the actual .rotation and .scale of the psprite.
     virtual play void ApplyToPSP()
     {
-        self.prevOffs = self.localOffs;
-        self.prevAngs = self.localAngs;
-        self.prevScale = self.localScale;
-
         self.psp.bPivotPercent = true;
         self.psp.bAddWeapon = false;
 		self.psp.pivot = (0.5,0.5);
@@ -163,7 +159,6 @@ class ZSAPSP
     {
         self.psp.x = t.x;
         self.psp.y = t.y;
-        console.printf("%d %.2f %.2f", pspid, t.x, t.y);
         // Immediately set the oldx and y if interpolation is disabled otherwise it will still interpolate and we don't want that in this case.
         if (psp.firstTic)
         {
@@ -220,11 +215,20 @@ class ZSAPSP
 
     // Set the translation, rotation and scaling of this PSP.
     // Pretty much a wrapper function that allows you to do it all in one go.
+    // Also updates the previous TRS.
     virtual void SetTRS(Vector3 t, Vector3 r, Vector3 s)
     {
+        UpdateLastTRS();
         self.localOffs = t;
         self.localAngs = r;
         self.localScale = s;
+    }
+
+    virtual void UpdateLastTRS()
+    {
+        self.lastAnimOffs = self.localOffs;
+        self.lastAnimAngs = self.localAngs;
+        self.lastAnimScale = self.localScale;
     }
 
     virtual bool GetCleanupNeeded()
