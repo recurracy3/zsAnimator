@@ -21,6 +21,14 @@
 // but add an extra class that inherits ZSAnimator that cuts out a lot of the bloat.
 /////////////////////////////////////////
 
+// Ideas:
+// Maybe allow ZSAnimator to work on the HUD as well? Could be interesting.
+
+
+
+
+
+
 // This class is made and filled in by the Blender plugin.
 // A frame can manipulate either the view, reference or a psprite.
 class ZSAnimationFrame
@@ -37,6 +45,7 @@ class ZSAnimationFrame
 	}
 	
 	// ID of the psprite this AnimationFrame will change.
+	// Can be special numbers defined in ZSAnimator. It changes the behavior of this frame.
 	int pspId;
 	// Frame number of this frame.
 	int frameNum;
@@ -49,13 +58,17 @@ class ZSAnimationFrame
 	// Whether interpolation has been enabled in the animation created by blender.
 	bool interpolate;
 	ZSAnimation anim;
-	// This contains a 
+	// If this is set this means that this frame is a reference. References normally do not change PSPids but manipulate a physical Actor in the world. To the player,
+	// it will appear as if it is part of the screen.
 	string reference;
+	// Parent of this frame.
 	int parentPspId;
 
 	// These are applied to the ZSAPSP when applying this frame.
 	int flags;
 	
+	// ZSAnimator's Blender plugin dumps the frame data as these in the .zs files it generates.
+	// The arguments are pretty straight forward.
 	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool layered = false,
 		string reference = "",
 		float zPos = 0.0,
@@ -98,6 +111,8 @@ class ZSAnimationFrame
 	}
 }
 
+// Nodes are a means for the automatic ZSAnimator pipeline to determine which frame will play next.
+// This essentially forms a linked list.
 class ZSAnimationFrameNode
 {
 	ZSAnimationFrameNode next;
@@ -142,8 +157,11 @@ class ZSAnimationReference : Actor
 	Vector3 animPos;
 	Vector3 animRot; 
 	Vector2 animScales;
+
+	// I don't really know what this does besides divide the positions for some reason. I should probably change this.
 	bool _projectFromView;
 	property ProjectFromView : _projectFromView;
+	// Multiplier of the positions, for reasons?
 	Vector3 _posMults;
 	property PosMults : _posMults;
 	
@@ -159,6 +177,7 @@ class ZSAnimationReference : Actor
 	
 	override void Tick()
 	{
+		// I could probably do with omitting Tick() because, well, this Actor doesn't do shit beside lol get rotated idiot
 		super.Tick();
 		
 		// Since references are supposed to turn a local view coordinate into a world coordinate,
@@ -194,6 +213,9 @@ class ZSAnimationReference : Actor
 	}
 }
 
+// Probably the main force of the Blender->ZSAnimator pipeline.
+// The blender plugin shits out classes that inherit from this.
+// This collects frame data and organises them. Actually playing the animations is done in instances of ZSAnimator.
 Class ZSAnimation
 {
 	PlayerInfo ply;
@@ -577,15 +599,7 @@ Class ZSAnimation
 
 Class ZSAnimator : Thinker
 {
-	static clearscope Vector3 GetScaleFromMatrix(zsagmmatrix4 matrix)
-	{
-		matrix = matrix.transpose();
-		float x = (matrix.values[0][0], matrix.values[1][0], matrix.values[2][0]).length();
-		float y = (matrix.values[0][1], matrix.values[1][1], matrix.values[2][1]).length();
-		float z = (matrix.values[0][2], matrix.values[1][2], matrix.values[2][2]).length();
-		return (x, y, z);
-	}
-
+	// Helper function.
 	static clearscope double LinearMap(double val, double source_min, double source_max, double out_min, double out_max, bool clampIt = false) {
         double d = (val - source_min) * (out_max - out_min) / (source_max - source_min) + out_min;
         if (clampit) {
@@ -596,12 +610,14 @@ Class ZSAnimator : Thinker
         return d;
     }
 	
+	// Pretty straight forward.
 	static ZSAnimator Create()
 	{
 		ZSAnimator animator = ZSanimator(New("ZSAnimator"));
 		return animator;
 	}
 	
+	// I wish I named these better but I can't really do that anymore.
 	enum SpecialAnimNums
 	{
 		PlayerView = -5000,
@@ -617,11 +633,13 @@ Class ZSAnimator : Thinker
 		LF_FlipY = 1 << 4 // Same as aboves
 	}
 	
-	//ZSAnimation currentAnimation;
 	PlayerInfo ply;
+	// Kinda useless at the moment, but eh.
 	bool manual;
 	Array<ZSAnimation> currentAnimations;
 
+	// Because ZSAPSPs have to be stored somewhere. 
+	// Key is the psprite id. 
 	Map<int, ZSAPSP> zsaPspDict;
 	
 	static ZSAnimation GetAnimationFromClassName(Class<ZSanimation> animationClass)
@@ -632,6 +650,7 @@ Class ZSAnimator : Thinker
 		return anim;
 	}
 
+	// Pretty straightforward really, return an instance of a ZSAPSP.
 	ZSAPSP MakeZSAPSP(int pspId)
 	{
 		if (pspId == ZSAnimator.PlayerView) { return NULL; }
@@ -641,6 +660,7 @@ Class ZSAnimator : Thinker
 		return p;
 	}
 
+	// Wrapper function pretty much. You don't need to provide instances of ZSAPSP this way.
 	void ParentPSPTo(int pspId, int parentPspId, bool keepViewport = false)
 	{
 		let zpsp = zsaPspDict.GetIfExists(pspId);
@@ -795,7 +815,7 @@ Class ZSAnimator : Thinker
 		currentAnimations.Clear();
 	}
 	
-	// Advance the animations to their next node, delete them if they have stopped running.
+	// Advance the animations to their next node, delete them if they have ended.
 	play void AdvanceAnimations()
 	{
 		Array<ZSAnimation> deletedAnims;
@@ -954,7 +974,7 @@ Class ZSAnimator : Thinker
 		return (angs.x*-1, angs.y, angs.z);
 	}
 	
-	// Deprecated 
+	// Deprecated, should be deleted
 	void TransformPSPCorners(Psprite psp, ZSAnimation anim, ZSAnimationFrame f)
 	{
 		if (!psp || !psp.curstate) { return; }
@@ -1136,6 +1156,11 @@ Class ZSAnimator : Thinker
 			ang = (ang.x * -1, ang.y, ang.z);
 		}
 		animRef.animRot = ang;
+	}
+
+	clearscope Vector3, Vector3, Vector3 CalculateFrameTRS(ZSanimation anim, ZSanimationFrame f)
+	{
+
 	}
 	
 	// Wrapper to apply a frame.

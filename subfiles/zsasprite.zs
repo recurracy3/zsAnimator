@@ -41,6 +41,17 @@ class ZSAPSP
         let zsaPsp = animator.GetifExists(pspId)
     }
 
+    // Extract the scale portion of a gutamatics matrix. This does lose the signedness.
+    static clearscope Vector3 GetScaleFromMatrix(zsagmmatrix4 matrix)
+	{
+		matrix = matrix.transpose();
+		float x = (matrix.values[0][0], matrix.values[1][0], matrix.values[2][0]).length();
+		float y = (matrix.values[0][1], matrix.values[1][1], matrix.values[2][1]).length();
+		float z = (matrix.values[0][2], matrix.values[1][2], matrix.values[2][2]).length();
+		return (x, y, z);
+	}
+
+
     // This function applies the ZSAPSP fully to the psprite.
     // Does everything for you. Is called automatically by ZSAnimator through the StartAnimation pipeline.
     // This means setting the position of the Psprite,
@@ -147,7 +158,7 @@ class ZSAPSP
 
     // Convert the local offsets into a viewport TRS.
     // This includes multiplying the local TRS by the parents' local TRS recursively.
-    ZSAGMMatrix4 LocalTRSToViewportTRS()
+    clearscope ZSAGMMatrix4 LocalTRSToViewportTRS()
     {
         // Todo: applying a perspective matrix, perhaps? Might be interesting.
         // This would require the Z part of localOffs to not be omitted.
