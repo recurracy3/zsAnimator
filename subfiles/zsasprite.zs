@@ -26,7 +26,7 @@ class ZSAPSP
     // Pointer to the animator. Must not be null!
     ZSAnimator animator;
 
-    // Local transform information.
+    // Local transform information. I should probably figure out a way to determine the order these are stored in.
     Vector3 localOffs;
     Vector3 localAngs;
     Vector3 localScale;

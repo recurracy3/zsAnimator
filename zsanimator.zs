@@ -23,28 +23,25 @@
 /////////////////////////////////////////
 
 // Ideas:
-// Maybe allow ZSAnimator to work on the HUD as well? Could be interesting.
+// Maybe allow ZSAnimator to work on the UI layer as well? Could be interesting.
 
 
 
-
+//////////////////////////////////////////
+// About ZSAnimator
+//
+// ZSAnimator is intended to be a Blender -> GZdoom pipeline for making detailed first person animations, camera included.
+// It currently, thus, does a lot for you to make the animations as smoothly as possible (literally).
+// It's supposed to be a fire and forget kind of deal where you make an animation in Blender and export them with the supplied Blender addon.
+// I wanted it to be as easy to use in ZScript as possible, with little functions necessary to set it up and get it working, as I would like it
+// to be usable by people with little experience while also being a complete set of tools for people with more experience.
+//////////////////////////////////////////
 
 
 // This class is made and filled in by the Blender plugin.
 // A frame can manipulate either the view, reference or a psprite.
 class ZSAnimationFrame
 {
-	// Currently unused.
-	// Could be used to determine which values to omit from the automatic animation
-	// pipeline, I guess?
-	// Should probably be a mask or something.
-	enum FrameValue
-	{
-		ZSAFV_Position,
-		ZSAFV_Rotation,
-		ZSAFV_Scale
-	}
-	
 	// ID of the psprite this AnimationFrame will change.
 	// Can be special numbers defined in ZSAnimator. It changes the behavior of this frame.
 	int pspId;
@@ -624,6 +621,17 @@ Class ZSAnimator : Thinker
 		PlayerView = -5000,
 		None = -5001,
 	}
+
+	// Currently unused.
+	// Could be used to determine which values to omit from the automatic animation
+	// pipeline, I guess?
+	// Should probably be a mask or something.
+	enum FrameValue
+	{
+		ZSAFV_Position,
+		ZSAFV_Rotation,
+		ZSAFV_Scale
+	}
 	
 	enum ZSAFlags
 	{
@@ -635,7 +643,7 @@ Class ZSAnimator : Thinker
 	}
 	
 	PlayerInfo ply;
-	// Kinda useless at the moment, but eh.
+	// This prevents the Tick() from doing everything for you so you can do things yourself if you so desire.
 	bool manual;
 	Array<ZSAnimation> currentAnimations;
 
@@ -1230,10 +1238,9 @@ Class ZSAnimator : Thinker
 	override void Tick()
 	{
 		super.Tick();
-		
-		UpdateZSAPSPs();
-
 		if (manual) { return; }
+
+		UpdateZSAPSPs();
 
 		// BIG TODO:
 		// Somehow rewrite this to make dynamically setting psprite information easier.
