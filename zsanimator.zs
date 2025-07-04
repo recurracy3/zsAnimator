@@ -17,7 +17,6 @@ class ZSAnimationFrame
 	ZSAnimation anim;
 	string reference;
 	int parentPspId;
-	// ZSAnimationFrameNode node;
 
 	// These are applied to the ZSAPSP when applying this frame.
 	int flags;
@@ -34,17 +33,6 @@ class ZSAnimationFrame
 		frame.pspOffsets = (pspOffsets.x, pspOffsets.y, zPos);
 		frame.pspScale = pspScale;
 		frame.parentPspId = parent;
-		// if (!layered)
-		// {
-			// if (frame.pspScale.x < 0)
-			// {
-				// frame.flipx = true;
-			// }
-			// if (frame.pspScale.y < 0)
-			// {
-				// frame.flipy = true;
-			// }
-		// }
 		
 		frame.interpolate = interpolate;
 		frame.reference = reference;
@@ -142,7 +130,6 @@ class ZSAnimationReference : Actor
 		// use the player reference to adjust the coordinates accordingly.
 		// Also make sure to use Quaternion maths to prevent gimbal locking and rotate the reference.
 		
-		//float viewZ = ply.viewz + (ply.mo.height * 0.5 - ply.mo.floorclip);
 		float viewZ = ply.viewz;
 		Vector3 plyAngs = (ply.mo.ViewAngle + ply.mo.angle, ply.mo.ViewPitch + ply.mo.Pitch, ply.mo.ViewRoll + ply.mo.Roll);
 		Vector3 plyPos = (ply.mo.pos.x, ply.mo.pos.y, viewZ);
@@ -154,16 +141,12 @@ class ZSAnimationReference : Actor
 			aPos = (aPos.x / 15.0, aPos.y / 15.0, aPos.z);
 		}
 		
-		// console.printf("animpos %.2f %.2f %.2f", self.animPos.x, self.animPos.y, self.animPos.z);
 		Quat base = Quat.FromAngles(plyAngs.x, plyAngs.y, plyAngs.z);
 		Vector3 offs = base * (aPos.z*-1, aPos.x, aPos.y);
-		// console.printf("offs %.2f %.2f %.2f", offs.x, offs.y, offs.z);
 		Vector3 glob = level.Vec3Offset(plyPos, (offs.x, offs.y, offs.z));
-		// console.printf("glob %.2f %.2f %.2f", glob.x, glob.y, glob.z);
 		self.SetOrigin(glob, true);
 		
 		// set the angle of the reference
-		
 		Quat bonAng = Quat.FromAngles(animRot.x, animRot.z-90, animRot.y);
 		Quat myrotQ = base * bonAng;
 		Vector3 myrotV = myrotQ * (1,0,0);
@@ -173,9 +156,6 @@ class ZSAnimationReference : Actor
 		self.A_SetRoll(rots.z, SPF_INTERPOLATE);
 		
 		self.scale = animScales;
-		
-		// self.A_SetAngle(atan2(myrotV.y, myrotV.x), SPF_INTERPOLATE);
-		// self.A_SetPitch(-asin(myrotV.z), SPF_INTERPOLATE);
 	}
 }
 
@@ -186,20 +166,14 @@ Class ZSAnimation
 	int framerate;
 	double playbackSpeed;
 	bool running;
-	//ZSAnimationFrame previousFrame;
-	//Weapon currentWeapon;
 	Array<ZSAnimationFrame> frames;
 	// Associative map of nodes, where the key is the PSP Id.
 	Map<int, ZSAnimationFrameNode > nodeMap;
 	Map<int, ZSAnimationFrameNode > currentNodes;
-	// ZSAnimationFrameNode currentNode;
-	// ZSAnimationFrameNode firstNode;
-	// ZSAnimationFrameNode lastNode;
 	bool spritesLinked;
 	int lastTickDiff;
 	bool layered; // deprecated, does nothing
-	bool destroying;
-	// DO NOT change this. It's done by ZSAnimator itself.
+	// DO NOT change this. It's done by ZSAnimator itself. Currently does nothing
 	bool filledIn;
 	ZSAnimator currentAnimator;
 	
@@ -212,7 +186,9 @@ Class ZSAnimation
 	
 	int flags;
 	
+	// This is the function that the blender plugin fills in to make the frame list. It contains raw animation data as a ZSAnimationFrame.
 	virtual void MakeFrameList() { }
+	// This function is filled in by the blender plugin as well, sets things like frame count and stuff.
 	virtual void Initialize() { }
 	void LinkList()
 	{
@@ -258,16 +234,6 @@ Class ZSAnimation
 		else
 			self.flags &= ~flags;
 	}
-	
-	/*bool GotoNextFrame()
-	{
-		if (framerate >= 0.0)
-			currentNode = currentNode.next;
-		else
-			currentNode = currentNode.prev;
-			
-		return currentNode != NULL;
-	}*/
 	
 	ZSAnimationFrameNode GetNextNode(ZSAnimationFrameNode node, double ticksNow, double ticksNext, bool forceNext = false)
 	{
@@ -323,36 +289,11 @@ Class ZSAnimation
 				{
 					return test;
 				}
-				
-				// if (ticksNext >= n.frame.frameNum && ticksNext <= test.frame.frameNum)
-				// {
-					// return test;
-				// }
 			}
 			
 			n = test;
 		}
 		return n;
-		
-		// let n = currentNode;
-		// int diff = abs(int(ticksNext) - int(ticksNow));
-		// if (forceNext) diff = 1;
-		
-		// for (int i = 0; i < diff; i++)
-		// {
-			// if (playbackSpeed >= 0.0)
-			// {
-				// if (n.next)
-					// n = n.next;
-			// }
-			// else
-			// {
-				// if (n.prev)
-					// n = n.prev;
-			// }
-		// }
-		
-		// return n;
 	}
 	
 	void AdvanceAnimation()
@@ -375,14 +316,6 @@ Class ZSAnimation
 		curIt.ReInit();
 		
 		currentTicks += abs(playbackSpeed);
-		
-		// let n = EvaluateNextNode(currentTicks, currentTicks + playbackSpeed);
-		// if (n != currentNode)
-		// {
-			// currentNode = n;
-		// }
-		// currentTicks += abs(playbackSpeed*ticRate);
-		// return currentNode != NULL;
 	}
 	
 	play ZSAnimationFrame EvaluateFrame(int layer, double ticksA, double ticksB)
@@ -407,9 +340,6 @@ Class ZSAnimation
 		}
 		double tickPerc = 0.0;
 		
-		// console.printf("frameA frameNum %d frameB frameNum %d", frameA.frameNum, frameB.frameNum);
-		
-		// if ((frameA.frameNum > 0 && frameB.frameNum > 0) && frameA.frameNum != frameB.frameNum)
 		if (frameA.frameNum != frameB.frameNum)
 		{
 			double tickIn = ticksA;
@@ -418,8 +348,6 @@ Class ZSAnimation
 			
 			if (playbackSpeed < 0)
 			{
-				// nA = frameB.frameNum;
-				// nB = frameA.frameNum;
 				tickIn = int(self.frameCount) - ticksA;
 			}
 			tickPerc = ZSAnimator.LinearMap(tickIn, nA, nB, 0.0, 1.0, true);
@@ -428,8 +356,6 @@ Class ZSAnimation
 		{
 			//tickPerc = ticksA%1.0;
 		}
-		
-		// console.printf("psp %d tickPerc %f ticksA %f ticksB %f frameA %d frameB %d", layer, tickPerc, ticksA, ticksB, frameA.frameNum, frameB.frameNum);
 		
 		ret.interpolate = frameA.interpolate;
 		
@@ -441,6 +367,8 @@ Class ZSAnimation
 		
 		if ((frameA && frameB) && frameA != frameB)
 		{	
+			// TOOD: Bring back the additive function
+
 			// if ((frameA.flags & ZSAnimator.LF_Additive) != 0)
 			// {
 			// 	if ((frameA.flags & ZSAnimator.LF_AdditiveNoPSP) == 0)
@@ -770,24 +698,12 @@ Class ZSAnimator : Thinker
 	}
 	
 	// This function can be used to start an animation directly and let ZSAnimator handle everything.
+	// TODO: Make frame and endFrame functional
 	void StartAnimation(PlayerInfo ply, ZSAnimation anim, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0)
 	{
 		playbackSpeed *= CVar.GetCVar("zsa_playbackSpeed", players[consoleplayer]).GetFloat();
-		/*let anim = ZSAnimation(New(animationClass));
-		anim.Initialize();
-		anim.MakeFrameList();
-		anim.LinkList();*/
 		self.ply = ply;
 		anim.currentAnimator = self;
-		
-		// if (playbackSpeed >= 0)
-		// {
-			// anim.currentNode = anim.firstNode;
-		// }
-		// else
-		// {
-			// anim.currentNode = anim.lastNode;
-		// }
 		
 		MapAnimPSPs(ply, anim);
 		anim.LinkList();
@@ -816,32 +732,9 @@ Class ZSAnimator : Thinker
 		anim.lastTickDiff = 0;
 		anim.ply = ply;
 		currentAnimations.Push(anim);
-		
-		/*if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
-		{
-			self.ply = ply;
-			currentAnimation = ZSAnimation(New(animationClass));
-			currentAnimation.Initialize();
-			currentAnimation.MakeFrameList();
-			currentAnimation.LinkList();
-		}
-		if (playbackSpeed >= 0)
-		{
-			currentAnimation.currentNode = currentAnimation.firstNode;
-		}
-		else
-		{
-			currentAnimation.currentNode = currentAnimation.lastNode;
-		}
-		
-		currentAnimation.currentTicks = frame;
-		currentAnimation.running = true;
-		currentAnimation.playbackSpeed = playbackSpeed;
-		currentAnimation.lastTickDiff = 0;
-		currentAnimation.flipAnimX = flipAnimX;
-		currentAnimation.flipAnimY = flipAnimY;*/
 	}
 	
+	//Stop the specified animation.
 	void StopAnimation(Class<ZSanimation> anim)
 	{
 		for (int i = 0; i < currentAnimations.Size(); i++)
@@ -854,6 +747,7 @@ Class ZSAnimator : Thinker
 		}
 	}
 	
+	// Stops ALL Animations.
 	void StopAllAnimations()
 	{
 		Array<ZSAnimation> deletedAnims;
@@ -866,6 +760,7 @@ Class ZSAnimator : Thinker
 		currentAnimations.Clear();
 	}
 	
+	// Advance the animations to their next node, delete them if they have stopped running.
 	play void AdvanceAnimations()
 	{
 		Array<ZSAnimation> deletedAnims;
@@ -877,7 +772,6 @@ Class ZSAnimator : Thinker
 				if (currentAnimation.currentTicks > currentAnimation.frameCount)
 				{
 					currentAnimation.running = false;
-					currentAnimation.destroying = true;
 					deletedAnims.Push(currentAnimation);
 				}
 				else
@@ -897,13 +791,9 @@ Class ZSAnimator : Thinker
 				anim.Destroy();
 			}
 		}
-		
-		/*if (!currentAnimation)
-			return;
-		
-		currentAnimation.AdvanceAnimation();*/
 	}
 	
+	// Links psprite's states durations with the animation.
 	void LinkPSprite(ZSAnimation anim, ZSAnimationFrame f, PSprite psp)
 	{
 		if (!psp) { return; }
@@ -918,10 +808,8 @@ Class ZSAnimator : Thinker
 			{
 				let st = psp.curState;	
 				// this psp does not loop, or its next state does not exist, so we need to adjust the frames, possibly even skipping to the next frame if necessary
-				//if (st && st.nextstate == NULL || st.nextstate != psp.curState)
 				if (st)
 				{
-					// if (nextN && nextN.frames.size() >= 1 && psp.tics > 0)
 					if (psp.tics > 0)
 					{
 						let a = int(nextTicks);
@@ -1013,6 +901,7 @@ Class ZSAnimator : Thinker
         return (yaw, pitch, roll);
     }
 	
+	// Reorder the incoming angles and prepare them for a transformation matrix.
 	static clearscope Vector3 ReorderZSAToGuta(Vector3 angs)
 	{
 		// ORDER IN ZSANIMATOR:
@@ -1030,6 +919,7 @@ Class ZSAnimator : Thinker
 		return (angs.x*-1, angs.y, angs.z);
 	}
 	
+	// Deprecated 
 	void TransformPSPCorners(Psprite psp, ZSAnimation anim, ZSAnimationFrame f)
 	{
 		if (!psp || !psp.curstate) { return; }
@@ -1068,6 +958,7 @@ Class ZSAnimator : Thinker
 		psp.coord3 = diff3.xy;
 	}
 	
+	// Deprecated
 	play void ApplyPSP(ZSanimation anim, ZSanimationFrame f)
 	{
 		let psp = ply.FindPSprite(f.pspId);
@@ -1144,6 +1035,7 @@ Class ZSAnimator : Thinker
 		}
 	}
 	
+	// Todo: make additive functional again
 	void ApplyView(ZSAnimation anim, ZSAnimationFrame f)
 	{
 		float viewScale = CVar.GetCVar("zsa_viewscale", players[consoleplayer]).GetFloat();
@@ -1182,6 +1074,7 @@ Class ZSAnimator : Thinker
 		}
 	}
 	
+	// Applies the Frame to the reference.
 	void ApplyReference(ZSanimation anim, ZSAnimationFrame f)
 	{
 		if (!anim.references.CheckKey(f.reference))
@@ -1210,6 +1103,7 @@ Class ZSAnimator : Thinker
 		animRef.animRot = ang;
 	}
 	
+	// Wrapper to apply a frame.
 	play void ApplyFrame(ZSAnimation anim, ZSAnimationFrame f)
 	{
 		if (f.pspId == ZSAnimator.PlayerView)
@@ -1223,10 +1117,12 @@ Class ZSAnimator : Thinker
 			{
 				zsap.psp.bInterpolate = f.interpolate;
 			}
-			zsap.SetTRS(f.pspOffsets, f.angles, (f.pspScale.x, f.pspScale.y, 1));
+			// Due to an error in my blender files that I caught too late and cannot be arsed 
+			// to fix, the angles need to be re-ordered.
+			let reorder = ZSAnimator.ReorderZSAToGuta(f.angles);
+			zsap.SetTRS(f.pspOffsets, reorder, (f.pspScale.x, f.pspScale.y, 1));
 			zsap.ApplyToPSP();
 			LinkPSprite(anim, f, zsap.psp);
-			// ApplyPsp(anim, f);
 		}
 		else if (f.pspId == ZSAnimator.None && f.reference)
 		{
@@ -1240,6 +1136,7 @@ Class ZSAnimator : Thinker
 		super.OnDestroy();
 	}
 
+	// Pretty self explanatory, but this will update the ZSAPSP Dictionary. 
 	void UpdateZSAPSPs()
 	{
 		if (!ply)
@@ -1276,6 +1173,9 @@ Class ZSAnimator : Thinker
 		UpdateZSAPSPs();
 
 		if (manual) { return; }
+
+		// BIG TODO:
+		// Somehow rewrite this to make dynamically setting psprite information easier.
 		for (int i = 0; i < currentAnimations.size(); i++)
 		{
 			let currentAnimation = currentAnimations[i];
@@ -1298,6 +1198,7 @@ Class ZSAnimator : Thinker
 		AdvanceAnimations();
 	}
 	
+	// Returns a currently playing animation.
 	ZSAnimation GetAnimation(Class<ZSAnimation> animationType)
 	{
 		for (int i = 0; i < currentAnimations.Size(); i++)
@@ -1308,7 +1209,8 @@ Class ZSAnimator : Thinker
 		return NULL;
 	}
 	
-	play void CreateOverlay(int pspId, Actor caller, StateLabel lb = NULL)
+	// Preferred to call this over A_Overlay. Returns a pointer to the (newly made) ZSAPSP instance.
+	play ZSAPSP CreateOverlay(int pspId, Actor caller, StateLabel lb = NULL)
 	{
 		if (!ply) { return; }
 		//ply.mo.A_Overlay(pspId, lb, noOverride);
@@ -1330,8 +1232,11 @@ Class ZSAnimator : Thinker
 			zsaPsp = zsaPspDict.GetIfExists(pspId);
 		}
 		zsaPsp.psp = psp;
+		return zsaPSP;
 	}
 	
+	// Returns the current PSPrite informmation as a ZSAnimationFrame if need be.
+	// Todo: make it use ZSAPSP instead, as ZSAPSP has all three rotation axises etc. for scaling. 
 	static ZSAnimationFrame GetCurrentPspAsFrame(PlayerInfo ply, int layerId)
 	{
 		let ret = ZSAnimationFrame.Create(layerId, 0, (0,0,0), (0,0), (0,0), false);
@@ -1355,6 +1260,8 @@ Class ZSAnimator : Thinker
 		return ret;
 	}
 	
+	// Wrapper function to animate a current PSP to something desired.
+	// Todo: Rewrite this to both use ZSAPSP and be less hokey.
 	void AnimatePSPTo(PlayerInfo ply, PSPrite psp, Vector2 pos, Vector2 sc, double ang, int tics, bool interpolate = true)
 	{
 		let frm = GetCurrentPspAsFrame(ply, psp.id);
@@ -1363,12 +1270,11 @@ Class ZSAnimator : Thinker
 		AnimateFromTo(ply, frm, to, tics, interpolate);
 	}
 	
+	// Wrapper function to animate a current PSP to something desired.
+	// Todo: Rewrite this to both use ZSAPSP and be less hokey and a bitch to work with, as right now, it's annoying as hell. I don't like it one bit.
 	void AnimateFromTo(PlayerInfo ply, ZSAnimationFrame from, ZSAnimationFrame to, int tics, bool interpolate = true)
 	{
 		ZSAnimation anim = New("ZSAnimation");
-		// let curPos = (psp.x, psp.y);
-		// let curAng = psp.rotation;
-		// let curSc = psp.scale;
 		from.frameNum = 0;
 		to.frameNum = tics-1;
 		from.interpolate = interpolate;
@@ -1379,9 +1285,6 @@ Class ZSAnimator : Thinker
 		anim.frameCount = tics;
 		
 		anim.LinkList();
-		
-		// anim.frames.Push(ZSAnimationFrame.Create(psp.id, 0, (curAng, 0, 0), curPos, curSc, interpolate));
-		// anim.frames.Push(ZSAnimationFrame.Create(psp.id, tics, (ang, 0, 0), pos, sc, interpolate));
 		StartAnimation(ply, anim);
 	}
 

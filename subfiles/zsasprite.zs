@@ -1,3 +1,4 @@
+// This 
 class ZSAPSP
 {
     enum corners
@@ -8,57 +9,56 @@ class ZSAPSP
         CORNER_BOTTOMRIGHT
     }
 
-    int flags;
+    // Todo: Remove this from ZSAPSP, this should not be here, should be done in ZSAnimationFrame instead.
+    int zsaLayerFlags;
     // The ID of this zsaPsp instance.
     int pspId;
     // The psprite this ZSAPSP instance wraps. For initialization this can be null but MUST be filled in by ZSAnimator directly after.
     PSprite psp;
-    // The current TRS matrix of this PSP.
+    // The current Viewport TRS matrix of this PSP.
     zsaGMMatrix4 trsMatrix;
-    // This psp's parent. Can be null.
     int parentPspId;
+    // This psp's parent. Can be null.
     ZSAPSP parent;
     // The children of this ZSAPSP.
     Array<ZSAPSP> children;
     // Pointer to the animator. Must not be null!
     ZSAnimator animator;
 
+    // Local transform information.
     Vector3 localOffs;
     Vector3 localAngs;
     Vector3 localScale;
     // If true, if this ZSAPSP is destroyed, destroy all child ZSAPSPs as well.
     bool collapseOnDestroy;
 
+    // This function applies the ZSAPSP fully to the psprite.
+    // Does everything for you. Is called automatically by ZSAnimator through the StartAnimation pipeline.
     play void ApplyToPSP()
     {
         if (!psp)
         {
             return;
         }
-        
+
         self.psp.bPivotPercent = true;
         self.psp.bAddWeapon = false;
 		self.psp.pivot = (0.5,0.5);
         let viewTrs = LocalTRSToViewportTRS();
+        self.trsMatrix = viewTrs;
         ApplyTRSMatrix(viewTrs);
     }
 
+    // Fully applies a TRS matrix to the PSprite.
     play void ApplyTRSMatrix(zsaGMMatrix4 matrix)
     {
         Vector3 t = (matrix.values[0][3], matrix.values[1][3], 0);
         ApplyTranslation(t);
         TransformCorners(matrix);
-
-        // let [a1, a2, a3] = matrix.rotationToEulerAngles();
-        // // console.printf("%d r %.2f %.2f %.2f", pspId, a1, a2, a3);
-        // psp.rotation = a3;
-
-        // let sc = ZSanimator.GetScaleFromMatrix(matrix);
-        // console.printf("%d sc %.2f %.2f %.2f", pspId, sc.x, sc.y, sc.z);
-        // psp.scale.x = sc.x;
-        // psp.scale.y = sc.y;
     }
 
+    // Transform the corners of the psprite. This allows you to skew a sprite if desired, seperately of 
+    // the psprite's own rotation and scale.
     play void TransformCorners(zsaGMMatrix4 matrix)
     {
 		if (!psp || !psp.curstate) { return; }
@@ -66,16 +66,17 @@ class ZSAPSP
 		int w, h;
 		[w, h] = TexMan.GetSize(texid);
 		Vector2 sprsize = (w, h);
-		// Vector2 sprsize = TexMan.GetscaledSize(texid);
 		
 		Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
 		Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
 		Vector3 corner2 = (sprSize.x/2, -sprSize.y/2, 0);
 		Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
 
-        matrix.values[0][3] = 0;
-        matrix.values[1][3] = 0;
-        matrix.values[2][3] = 0;
+        for (int i = 0; i < 3; i++)
+        {
+            // Remove the translation portion here as it's (assumedly) done by ApplyTRSMatrix already.
+            matrix.values[i][3] = 0;
+        }
 		
 		Vector3 v0 = matrix.multiplyVector3(corner0);
 		Vector3 v1 = matrix.multiplyVector3(corner1);
@@ -86,14 +87,18 @@ class ZSAPSP
 		Vector3 diff1 = v1 - corner1;
 		Vector3 diff2 = v2 - corner2;
 		Vector3 diff3 = v3 - corner3;
+        // Rather naive attempt at ortho projection by just omitting the Z part of the translation entirely.
 		psp.coord0 = diff0.xy;
 		psp.coord1 = diff1.xy;
 		psp.coord2 = diff2.xy;
 		psp.coord3 = diff3.xy;
 	}
 
+    // Applies a translation to the PSP.
+    // Mind you 'translation' in this case DOES NOT MEAN 'translation' in GZDoom terms, which is related to recoloring.
     play void ApplyTranslation(Vector3 t)
     {
+        // Todo: Take out the flipx handling and similar stuff and move it to the ZSAnimation pipeline.
         if (!psp)
         {
             return;
@@ -128,9 +133,12 @@ class ZSAPSP
         }
     }
 
+    // Convert the local offsets into a viewport TRS.
+    // This includes multiplying the local TRS by the parents' local TRS.
     ZSAGMMatrix4 LocalTRSToViewportTRS()
     {
-        let angs = self.localAngs;//ZSAnimator.ReorderZSAToGuta(self.localAngs);
+        // Todo: applying a perspective matrix, perhaps? Might be interesting.
+        let angs = self.localAngs;
         ZSAGMMatrix4 ret = zsaGMMatrix4.CreateTRSEuler((localOffs.x, localOffs.y, 0), angs.x, angs.y, angs.z, (localScale.x, localScale.y, 1));
         if (parent)
         {
@@ -140,6 +148,9 @@ class ZSAPSP
         return ret;
     }
 
+    // Parent this ZSAPSP to a new PSP.
+    // Todo: make keepViewport convert the viewport transform
+    // into local transform... Somehow.
     void ParentTo(ZSAPSP newParent, bool keepViewport = false)
     {
         self.parent = newParent;
@@ -149,6 +160,9 @@ class ZSAPSP
         }
     }
 
+    // Unparent this ZSAPSP.
+    // Todo: make keepViewport retain the viewport transform
+    // when unparenting... somehow...
     void Unparent(bool keepViewport = false)
     {
         let myIndex = self.parent.children.Find(self);
@@ -159,23 +173,26 @@ class ZSAPSP
         self.parent = NULL;
     }
 
+    // Set the translation, rotation and scaling of this PSP.
+    // Pretty much a wrapper function that allows you to do it all in one go.
     void SetTRS(Vector3 t, Vector3 r, Vector3 s)
     {
         self.localOffs = t;
-        let reOrder = ZSAnimator.ReorderZSAToGuta(r);
-        self.localAngs = (reOrder.x, reOrder.y, reOrder.z);
+        self.localAngs = r;
         self.localScale = s;
     }
 
-    void SetFlags(int flags, bool set = true)
+    // Todo: Replace this with something more coherent, layer flags should not be handled by the ZSAPSP, honestly.
+    // Perhaps move this to ZSAnimationFrame.
+    void SetZSALayerFlags(int flags, bool set = true)
     {
         if (set)
         {
-            self.flags |= flags;
+            self.zsaLayerFlags |= flags;
         }
         else
         {
-            self.flags &= ~flags;
+            self.zsaLayerFlags &= ~flags;
         }
     }
 }
