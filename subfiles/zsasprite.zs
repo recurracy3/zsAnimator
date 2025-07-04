@@ -26,8 +26,6 @@ class ZSAPSP
         CORNER_BOTTOMRIGHT
     }
 
-    // Todo: Remove this from ZSAPSP, this should not be here, should be done in ZSAnimationFrame instead.
-    int zsaLayerFlags;
     // The ID of this zsaPsp instance.
     int pspId;
     // The psprite this ZSAPSP instance wraps. For initialization this can be null but MUST be filled in by ZSAnimator directly after.
@@ -68,7 +66,6 @@ class ZSAPSP
 		float z = (matrix.values[0][2], matrix.values[1][2], matrix.values[2][2]).length();
 		return (x, y, z);
 	}
-
 
     // This function applies the ZSAPSP fully to the psprite.
     // Does everything for you. Is called automatically by ZSAnimator through the StartAnimation pipeline.
@@ -171,8 +168,9 @@ class ZSAPSP
         self.psp.x = x;
         self.psp.y = y;
 
-        psp.bInterpolate = !psp.firstTic;
+        // psp.bInterpolate = !psp.firstTic;
 
+        // Immediately set the oldx and y if interpolation is disabled otherwise it will still interpolate and we don't want that in this case.
         if (!psp.bInterpolate)
         {
             self.psp.oldx = psp.x;
@@ -228,19 +226,5 @@ class ZSAPSP
         self.localOffs = t;
         self.localAngs = r;
         self.localScale = s;
-    }
-
-    // Todo: Replace this with something more coherent, layer flags should not be handled by the ZSAPSP, honestly.
-    // Perhaps move this to ZSAnimationFrame.
-    void SetZSALayerFlags(int flags, bool set = true)
-    {
-        if (set)
-        {
-            self.zsaLayerFlags |= flags;
-        }
-        else
-        {
-            self.zsaLayerFlags &= ~flags;
-        }
     }
 }

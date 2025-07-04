@@ -55,6 +55,7 @@ class ZSAnimationFrame
 	// Scale of the psprite.
 	Vector2 pspScale;
 	// Whether interpolation has been enabled in the animation created by blender.
+	// To disable this set the keyframe interpolation to LINEAR. Any other value means interpolation.
 	bool interpolate;
 	ZSAnimation anim;
 	// If this is set this means that this frame is a reference. References normally do not change PSPids but manipulate a physical Actor in the world. To the player,
@@ -62,9 +63,6 @@ class ZSAnimationFrame
 	string reference;
 	// Parent of this frame.
 	int parentPspId;
-
-	// These are applied to the ZSAPSP when applying this frame.
-	int flags;
 	
 	// ZSAnimator's Blender plugin dumps the frame data as these in the .zs files it generates.
 	// The arguments are pretty straight forward.
