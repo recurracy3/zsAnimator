@@ -1,3 +1,19 @@
+    // ZSAnimator: A ZScript animation framework, allowing you to make first-person animations in blender usable in GZDoom.
+    // Copyright (C) 2025 Recurracy
+
+    // This program is free software: you can redistribute it and/or modify
+    // it under the terms of the GNU General Public License as published by
+    // the Free Software Foundation, either version 3 of the License, or
+    // (at your option) any later version.
+
+    // This program is distributed in the hope that it will be useful,
+    // but WITHOUT ANY WARRANTY; without even the implied warranty of
+    // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    // GNU General Public License for more details.
+
+    // You should have received a copy of the GNU General Public License
+    // along with this program.  If not, see https://www.gnu.org/licenses.
+
 // This class is a wrapper that allows you to retain a full TRS matrix in order to skew a sprite with Gutamatics' matrix functions.
 // It's not a Thinker so it doesn't do any logic for you, you can either do that in ZSAnimator or your own classes.
 class ZSAPSP
