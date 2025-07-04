@@ -1042,45 +1042,6 @@ Class ZSAnimator : Thinker
 		return (angs.x*-1, angs.y, angs.z);
 	}
 	
-	// Deprecated, should be deleted
-	void TransformPSPCorners(Psprite psp, ZSAnimation anim, ZSAnimationFrame f)
-	{
-		if (!psp || !psp.curstate) { return; }
-		if (!f) { return; }
-		if (!anim) { return; }
-		let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
-		int w, h;
-		[w, h] = TexMan.GetSize(texid);
-		Vector2 sprsize = (w, h);
-		// Vector2 sprsize = TexMan.GetscaledSize(texid);
-		
-		Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
-		Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
-		Vector3 corner2 = (sprSize.x/2, -sprSize.y/2, 0);
-		Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
-		Vector3 vecSc = (f.pspScale.x, f.pspScale.y, 1);
-		
-		Vector3 angs = (f.angles.x * ((anim.flags & ZSAnimator.LF_FLIPX == 0 ? -1 : 1)), f.angles.y, f.angles.z);
-		angs = ZSAnimator.ReorderZSAToGuta(angs);
-		
-		// ORDER: Z Y X
-		let rotScMatrix = zsaGMMatrix4.CreateTRSEuler((0,0,0), angs.z, angs.y, angs.x, vecSc);
-		
-		Vector3 v0 = rotScMatrix.multiplyVector3(corner0);
-		Vector3 v1 = rotScMatrix.multiplyVector3(corner1);
-		Vector3 v2 = rotScMatrix.multiplyVector3(corner2);
-		Vector3 v3 = rotScMatrix.multiplyVector3(corner3);
-		
-		Vector3 diff0 = v0 - corner0;
-		Vector3 diff1 = v1 - corner1;
-		Vector3 diff2 = v2 - corner2;
-		Vector3 diff3 = v3 - corner3;
-		psp.coord0 = diff0.xy;
-		psp.coord1 = diff1.xy;
-		psp.coord2 = diff2.xy;
-		psp.coord3 = diff3.xy;
-	}
-	
 	// Todo: make additive functional again
 	void ApplyView(ZSAnimation anim, ZSAnimationFrame f)
 	{
@@ -1184,13 +1145,18 @@ Class ZSAnimator : Thinker
 			// Due to an error in my blender files that I caught too late and cannot be arsed 
 			// to fix, the angles need to be re-ordered.
 			int flags = anim.flags;
+			Vector3 t, r, s;
 			if (zsap.parent)
 			{
-				flags |= ZSAnimator.LF_DontCenterPSP;
+				t = f.pspOffsets;
+				r = f.angles;
+				s = (f.pspScale.x, f.pspScale.y, f.pspScale.z);
 			}
-			let reorder = ZSAnimator.ReorderZSAToGuta(f.angles);
-			let [t,r,s] = CalculateTRS(f.pspOffsets, f.angles, (f.pspScale.x, f.pspScale.y, 1), flags);
-			r = ZSAnimator.ReorderZSAToGuta(r);
+			else
+			{
+				[t,r,s] = CalculateTRS(f.pspOffsets, f.angles, (f.pspScale.x, f.pspScale.y, 1), flags);
+				r = ZSAnimator.ReorderZSAToGuta(r);
+			}
 			zsap.SetTRS(t,r,s);
 			zsap.ApplyToPSP();
 			LinkPSprite(anim, f, zsap.psp);
