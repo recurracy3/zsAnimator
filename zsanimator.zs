@@ -19,6 +19,7 @@
 // Rewrite ZSAnimator a little bit to be less
 // naive and dependant on the Blender framework. Retain the current functionality
 // but add an extra class that inherits ZSAnimator that cuts out a lot of the bloat.
+// It should allow you to manually do some things regardless of the Blender part.
 /////////////////////////////////////////
 
 // Ideas:
