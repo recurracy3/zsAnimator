@@ -1150,7 +1150,7 @@ Class ZSAnimator : Thinker
 			{
 				t = f.pspOffsets;
 				r = f.angles;
-				s = (f.pspScale.x, f.pspScale.y, f.pspScale.z);
+				s = (f.pspScale.x, f.pspScale.y, 1);
 			}
 			else
 			{
