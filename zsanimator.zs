@@ -18,6 +18,9 @@ class ZSAnimationFrame
 	string reference;
 	int parentPspId;
 	// ZSAnimationFrameNode node;
+
+	// These are applied to the ZSAPSP when applying this frame.
+	int flags;
 	
 	static ZSAnimationFrame Create(int pspId, int frameNum, Vector3 angles, Vector2 pspOffsets, Vector2 pspScale, bool interpolate, bool layered = false,
 		string reference = "",
@@ -247,28 +250,13 @@ Class ZSAnimation
 	{
 		references.Insert(key, val);
 	}
-	
-	void SetLayerFlags(int pspId, int flags, bool set = true)
-	{
-		let zsaPsp = currentAnimator.zsaPspDict.GetIfExists(pspId);
-		zsaPsp.SetFlags(flags, set);
-	}
 
-	void SetAnimFlags(int newflags, bool set = true)
-	{
-		if (set)
-			self.flags |= newflags;
-		else
-			self.flags &= ~newflags;
-	}
-
-	// Deprecated. 
 	void SetFlags(int flags, bool set = true)
 	{
-		foreach(k, v : currentAnimator.zsaPspDict)
-		{
-			v.SetFlags(flags, set);
-		}
+		if (set)
+			self.flags |= flags;
+		else
+			self.flags &= ~flags;
 	}
 	
 	/*bool GotoNextFrame()
@@ -790,6 +778,7 @@ Class ZSAnimator : Thinker
 		anim.MakeFrameList();
 		anim.LinkList();*/
 		self.ply = ply;
+		anim.currentAnimator = self;
 		
 		// if (playbackSpeed >= 0)
 		// {
@@ -827,7 +816,6 @@ Class ZSAnimator : Thinker
 		anim.lastTickDiff = 0;
 		anim.ply = ply;
 		currentAnimations.Push(anim);
-		anim.currentAnimator = self;
 		
 		/*if (currentAnimation == NULL || currentAnimation.GetClass() != animationClass)
 		{
@@ -1153,8 +1141,6 @@ Class ZSAnimator : Thinker
 			// SetPSPScale(psp, sc);
 			// SetPSPRotation(psp, ang);
 			TransformPSPCorners(psp, anim, f);
-			
-			LinkPSprite(anim, f, psp);
 		}
 	}
 	
@@ -1239,6 +1225,7 @@ Class ZSAnimator : Thinker
 			}
 			zsap.SetTRS(f.pspOffsets, f.angles, (f.pspScale.x, f.pspScale.y, 1));
 			zsap.ApplyToPSP();
+			LinkPSprite(anim, f, zsap.psp);
 			// ApplyPsp(anim, f);
 		}
 		else if (f.pspId == ZSAnimator.None && f.reference)
@@ -1253,11 +1240,41 @@ Class ZSAnimator : Thinker
 		super.OnDestroy();
 	}
 
+	void UpdateZSAPSPs()
+	{
+		if (!ply)
+		{
+			return;
+		}
+		for (let p = ply.psprites; p != null; p = p.next)
+		{
+			if (p.bDestroyed)
+			{
+				continue;
+			}
+			let zsap = zsaPspDict.GetIfExists(p.id);
+			if (!zsap)
+			{
+				zsap = MakeZSAPSP(p.id);
+				if (zsap)
+				{
+					AddZSAPSPToDict(zsap);
+				}
+			}
+
+			if (zsap)			
+			{
+				zsap.psp = p;
+			}
+		}
+	}
 	
 	override void Tick()
 	{
 		super.Tick();
 		
+		UpdateZSAPSPs();
+
 		if (manual) { return; }
 		for (int i = 0; i < currentAnimations.size(); i++)
 		{
@@ -1275,19 +1292,6 @@ Class ZSAnimator : Thinker
 						ApplyFrame(currentAnimation, f);
 					}
 				}
-				/*let n = currentAnimation.currentNode;
-				if (n)
-				{
-					for (int j = 0; j < n.frames.size(); j++)
-					{
-						//let f = n.frames[i];
-						let f = currentAnimation.EvaluateFrame(n.frames[j].pspId, currentAnimation.currentTicks, currentAnimation.currentTicks + currentAnimation.playbackSpeed);
-						if (f)
-						{
-							ApplyFrame(currentAnimation, f);
-						}
-					}
-				}*/
 			}
 		}
 		
@@ -1373,7 +1377,6 @@ Class ZSAnimator : Thinker
 		anim.frames.Push(from);
 		anim.frames.Push(to);
 		anim.frameCount = tics;
-		anim.SetLayerFlags(from.pspId, LF_DontCenterPSP);
 		
 		anim.LinkList();
 		
