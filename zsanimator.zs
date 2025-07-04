@@ -713,11 +713,34 @@ Class ZSAnimator : Thinker
 	// Pretty straightforward really, return an instance of a ZSAPSP.
 	ZSAPSP MakeZSAPSP(int pspId)
 	{
-		if (pspId == ZSAnimator.PlayerView) { return NULL; }
+		if (!IsPSPIDValid(pspId))
+		{
+			return NULL;
+		}
 		ZSAPSP p = New("ZSAPSP");
 		p.pspId = pspId;
 		p.animator = self;
 		return p;
+	}
+
+	virtual bool IsPSPIDValid(int pspId)
+	{
+		Array<int> invalids;
+		GetInvalidPSPIds(invalids);
+		foreach(id : invalids)
+		{
+			if (pspId == id)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	virtual void GetInvalidPSPIds(out Array<int> invalidPspIds)
+	{
+		invalidPspIds.Push(ZSAnimator.PlayerView);
+		invalidPspIds.Push(ZSAnimator.None);
 	}
 
 	// Wrapper function pretty much. You don't need to provide instances of ZSAPSP this way.
@@ -733,6 +756,7 @@ Class ZSAnimator : Thinker
 
 	bool AddZSAPSPToDict(ZSAPSP zsap)
 	{
+		if (!zsap) { return false; }
 		if (!zsaPspDict.CheckKey(zsap.pspId))
 		{
 			zsaPspDict.Insert(zsap.pspId, zsap);
@@ -1263,6 +1287,7 @@ Class ZSAnimator : Thinker
 
 	// Updates the zsapsp directory.
 	// Iterate through the player's psprites and make the zsapsp if necessary, then link it up.
+	// This means ALL PSPRITES the player owns!!
 	void UpdateZSAPSPs()
 	{
 		if (!ply)
@@ -1271,18 +1296,19 @@ Class ZSAnimator : Thinker
 		}
 		for (let p = ply.psprites; p != null; p = p.next)
 		{
+			console.printf("id %d", p.id);
+			let zsap = zsaPspDict.GetIfExists(p.id);
+			
 			if (p.bDestroyed)
 			{
+				console.printf("destroyed");
 				continue;
 			}
-			let zsap = zsaPspDict.GetIfExists(p.id);
+
 			if (!zsap)
 			{
 				zsap = MakeZSAPSP(p.id);
-				if (zsap)
-				{
-					AddZSAPSPToDict(zsap);
-				}
+				AddZSAPSPToDict(zsap);
 			}
 
 			if (zsap)			
@@ -1345,6 +1371,10 @@ Class ZSAnimator : Thinker
 	{
 		if (!ply) { return NULL; }
 		//ply.mo.A_Overlay(pspId, lb, noOverride);
+		if (!IsPSPIDValid(pspId))
+		{
+			ThrowAbortException("PSP %d is not valid!", pspId);
+		}
 		PSprite psp = ply.GetPSprite(pspId);
 		if (!psp) { return NULL; }
 		psp.caller = caller;
