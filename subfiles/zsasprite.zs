@@ -70,6 +70,12 @@ class ZSAPSP
 		return (x, y, z);
 	}
 
+    static clearscope Vector3 GetTranslationFromMatrix(zsagmmatrix4 matrix)
+    {
+        Vector3 t = (matrix.values[0][3], matrix.values[1][3], 0);
+        return t;
+    }
+
     // This function applies the ZSAPSP fully to the psprite.
     // Does everything for you. Is called automatically by ZSAnimator through the StartAnimation pipeline.
     // This means setting the position of the Psprite,
@@ -110,7 +116,7 @@ class ZSAPSP
     // Fully applies a TRS matrix to the PSprite.
     virtual play void ApplyTRSMatrix(zsaGMMatrix4 matrix)
     {
-        Vector3 t = (matrix.values[0][3], matrix.values[1][3], 0);
+        Vector3 t = GetTranslationFromMatrix(matrix);
         ApplyTranslation(t);
         TransformCorners(matrix);
     }
