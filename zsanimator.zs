@@ -594,25 +594,7 @@ Class ZSAnimation
 }
 
 Class ZSAnimator : Thinker
-{
-	// Helper function.
-	static clearscope double LinearMap(double val, double source_min, double source_max, double out_min, double out_max, bool clampIt = false) {
-        double d = (val - source_min) * (out_max - out_min) / (source_max - source_min) + out_min;
-        if (clampit) {
-            double truemax = out_max > out_min ? out_max : out_min;
-            double truemin = out_max > out_min ? out_min : out_max;
-            d = Clamp(d, truemin, truemax);
-        }
-        return d;
-    }
-	
-	// Pretty straight forward.
-	static ZSAnimator Create()
-	{
-		ZSAnimator animator = ZSanimator(New("ZSAnimator"));
-		return animator;
-	}
-	
+{	
 	// I wish I named these better but I can't really do that anymore.
 	enum SpecialAnimNums
 	{
@@ -651,6 +633,10 @@ Class ZSAnimator : Thinker
 	// Because ZSAPSPs have to be stored somewhere. 
 	// Key is the psprite id. 
 	Map<int, ZSAPSP> zsaPspDict;
+
+	////////////////////////////
+	// END OF DECLARATIONS
+	////////////////////////////
 	
 	static ZSAnimation GetAnimationFromClassName(Class<ZSanimation> animationClass)
 	{
@@ -659,6 +645,37 @@ Class ZSAnimator : Thinker
 		anim.MakeFrameList();
 		return anim;
 	}
+
+	// Manipulate the supplied position, rotation and scale depending on the arguments.
+	// Some animations need to be either flipped horizontally or vertically or whatever the hell and this takes care of that.
+	// Returns the position, rotation and scale as values ready to be supplied to a TRS matrix.
+	// Since Blender assumes the positions are in the middle of the screen (160,100) gets added to the X and Y if dontCenter is false (which it is not by default).
+	static clearscope Vector3, Vector3, Vector3 CalculateTRS(Vector3 translation, Vector3 rotation, Vector3 scale, bool flipAnimX = false, bool flipAnimY = false, bool dontCenter = false)
+	{
+		
+	}
+
+	// Helper function.
+	static clearscope double LinearMap(double val, double source_min, double source_max, double out_min, double out_max, bool clampIt = false) {
+        double d = (val - source_min) * (out_max - out_min) / (source_max - source_min) + out_min;
+        if (clampit) {
+            double truemax = out_max > out_min ? out_max : out_min;
+            double truemin = out_max > out_min ? out_min : out_max;
+            d = Clamp(d, truemin, truemax);
+        }
+        return d;
+    }
+	
+	// Pretty straight forward.
+	static ZSAnimator Create()
+	{
+		ZSAnimator animator = ZSanimator(New("ZSAnimator"));
+		return animator;
+	}
+
+	/////////////////////////////
+	// END OF STATIC FUNCTIONS
+	/////////////////////////////
 
 	// Pretty straightforward really, return an instance of a ZSAPSP.
 	ZSAPSP MakeZSAPSP(int pspId)
@@ -1166,13 +1183,6 @@ Class ZSAnimator : Thinker
 			ang = (ang.x * -1, ang.y, ang.z);
 		}
 		animRef.animRot = ang;
-	}
-
-	// Returns translation, rotation and scale of the supplied frame,
-	// accounting for flipping and such.
-	clearscope Vector3, Vector3, Vector3 CalculateFrameTRS(ZSanimation anim, ZSanimationFrame f)
-	{
-		
 	}
 	
 	// Wrapper to apply a frame.
