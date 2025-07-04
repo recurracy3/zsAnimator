@@ -715,6 +715,7 @@ Class ZSAnimator : Thinker
 	{
 		if (!IsPSPIDValid(pspId))
 		{
+			ThrowAbortException("pspid %d not valid", pspId);
 			return NULL;
 		}
 		ZSAPSP p = New("ZSAPSP");
@@ -763,16 +764,6 @@ Class ZSAnimator : Thinker
 			return true;
 		}
 		return false;
-	}
-
-	void DestroyZSAPSP(int pspId)
-	{
-		let item = zsaPspDict.GetIfExists(pspId);
-		if (item)
-		{
-			zsaPspDict.Remove(pspId);
-			item.Destroy();
-		}
 	}
 
 	// void SetPSPFlags(int pspId, int flags, bool set = true)
@@ -844,7 +835,7 @@ Class ZSAnimator : Thinker
 		self.ply = ply;
 		anim.currentAnimator = self;
 		
-		MapAnimPSPs(ply, anim);
+		//MapAnimPSPs(ply, anim);
 		anim.LinkList();
 		
 		if (playbackSpeed < 0)
@@ -1252,6 +1243,16 @@ Class ZSAnimator : Thinker
 		else if (f.pspId != ZSAnimator.None)
 		{
 			let zsap = zsaPspDict.GetIfExists(f.pspId);
+			if (!zsap)
+			{
+				return;
+			}
+
+			if (!zsap.psp)
+			{
+				return;
+			}
+
 			if (zsap.psp)
 			{
 				if (zsap.psp.bInterpolate && !f.interpolate)
@@ -1287,6 +1288,7 @@ Class ZSAnimator : Thinker
 
 	// Updates the zsapsp directory.
 	// Iterate through the player's psprites and make the zsapsp if necessary, then link it up.
+	// Also destroy if necessary.
 	// This means ALL PSPRITES the player owns!!
 	void UpdateZSAPSPs()
 	{
@@ -1294,34 +1296,83 @@ Class ZSAnimator : Thinker
 		{
 			return;
 		}
+		Array<PSPrite> availablePsps;
+		// collect the psps that exist
 		for (let p = ply.psprites; p != null; p = p.next)
 		{
-			console.printf("id %d", p.id);
-			let zsap = zsaPspDict.GetIfExists(p.id);
-			
-			if (p.bDestroyed)
+			if (p.bDestroyed || p.caller == NULL)
 			{
-				console.printf("destroyed");
 				continue;
 			}
 
-			if (!zsap)
+			if (!IsPSPIDValid(p.id))
 			{
-				zsap = MakeZSAPSP(p.id);
-				AddZSAPSPToDict(zsap);
+				continue;
 			}
 
-			if (zsap)			
+			availablePsps.Push(p);
+		}
+
+		Map<int, ZSAPSP> garbage;
+		
+		// collect the garbage
+		foreach(k, v : zsaPspDict)
+		{
+			bool found = false;
+			if (v == NULL || v.bDestroyed)
 			{
-				zsap.psp = p;
+				garbage.Insert(k, v);
+				continue;
 			}
+
+			if (v.psp == NULL || v.psp.bDestroyed || v.psp.caller == NULL)
+			{
+				garbage.Insert(k, v);
+				continue;
+			}
+
+			foreach(psp : availablePsps)
+			{
+				if (psp.id == k)
+				{
+					found = true;
+					continue;
+				}
+			}
+			if (!found)
+			{
+				garbage.Insert(k, v);
+			}
+		}
+
+		// GARBAGE DAY
+		foreach(k, v : garbage)
+		{
+			if (v && !v.bDestroyed)
+			{
+				v.Destroy();
+			}
+			zsaPspDict.Remove(k);
+		}
+
+		// check if creation necessary
+		foreach(psp : availablePsps)
+		{
+			let zsap = zsaPspDict.GetIfExists(psp.id);
+			if (!zsap)
+			{
+				zsap = MakeZSAPSP(psp.id);
+				AddZSAPSPToDict(zsap);
+				psp.firstTic = true;
+			}
+
+			zsap.psp = psp;
 		}
 	}
 
 	virtual void HandleBlenderPipeline()
 	{
 		UpdateZSAPSPs();
-
 		// BIG TODO:
 		// Somehow rewrite this to make dynamically setting psprite information easier.
 		for (int i = 0; i < currentAnimations.size(); i++)
@@ -1341,14 +1392,19 @@ Class ZSAnimator : Thinker
 					}
 				}
 			}
+
+			//UpdateZSAPSPs();
 		}
 		
 		AdvanceAnimations();
+
+		UpdateZSAPSPs();
 	}
 	
 	override void Tick()
 	{
 		super.Tick();
+
 		if (!manual)
 		{
 			HandleBlenderPipeline();
@@ -1380,20 +1436,18 @@ Class ZSAnimator : Thinker
 		psp.caller = caller;
 		let st = caller.FindState(lb, true);
 		psp.SetState(st);
-		// Fucky things are gonna happen otherwise.
-		psp.firstTic = true;
 
-		ZSAPSP zsaPsp = NULL;
-		if (!zsaPspDict.CheckKey(pspId))
+		ZSAPSP zsaPsp = zsaPspDict.GetIfExists(pspId);
+		if (!zsaPsp)
 		{
 			zsaPsp = MakeZSAPSP(pspId);
 			AddZSAPSPToDict(zsaPsp);
 		}
-		else
-		{
-			zsaPsp = zsaPspDict.GetIfExists(pspId);
-		}
 		zsaPsp.psp = psp;
+		
+		// Fucky things are gonna happen otherwise.
+		psp.firstTic = true;
+
 		return zsaPSP;
 	}
 	
@@ -1454,7 +1508,9 @@ Class ZSAnimator : Thinker
 	{
 		foreach(k, v : self.zsaPspDict)
 		{
-			console.printf("%d has psp %d", k, v.psp != NULL);
+			bool exists = v != NULL;
+			bool hasPsp = exists && v.psp != NULL;
+			console.printf("%d exists %d has psp %d", k, exists, hasPsp);
 		}
 	}
 }

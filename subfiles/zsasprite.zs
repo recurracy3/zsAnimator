@@ -30,7 +30,6 @@ class ZSAPSP
     int pspId;
     // The psprite this ZSAPSP instance wraps. For initialization this can be null but MUST be filled in by ZSAnimator directly after.
     PSprite psp;
-    bool hasPsp;
     // Store Viewport TRS matrices.
     zsaGMMatrix4 trsMatrix, prevTRSMatrix;
     int parentPspId;
@@ -46,16 +45,14 @@ class ZSAPSP
     Vector3 localOffs, localAngs, localScale;
     // Previous transform information.
     Vector3 prevOffs, prevAngs, prevScale;
-    // If true, if this ZSAPSP is destroyed through any means, destroy all child ZSAPSPs as well.
-    bool collapseOnDestroy;
 
     // If true the result of the TRS matrix gets *added* to the PSP instead of hard-setting it.
     // Big fucking can of worms and I'm not sure if I can get it working right. We'll see.
     // TODO
     bool isAdditive;
 
-    // If the psp has become NULL destroy it.
-    bool destroyIfPSPbecameNull;
+    // If the psp is destroyed destroy all children as well if this is true.
+    bool destroyCascade;
 
     static ZSAPsp GetFromPSP(PSprite psp, ZSAnimator animator)
     {
@@ -80,23 +77,6 @@ class ZSAPSP
     // This does not adjust the actual .rotation and .scale of the psprite.
     virtual play void ApplyToPSP()
     {
-        if (!hasPsp && psp != NULL)
-        {
-            hasPsp = true;
-        }
-        if (hasPsp && psp == NULL)
-        {
-            if (destroyIfPSPbecameNull)
-            {
-                self.Destroy();
-            }
-        }
-        if (bDestroyed)
-        {
-            return;
-        }
-
-        console.printf("applying %d", pspId);
         self.prevOffs = self.localOffs;
         self.prevAngs = self.localAngs;
         self.prevScale = self.localScale;
@@ -106,22 +86,26 @@ class ZSAPSP
 		self.psp.pivot = (0.5,0.5);
         let viewTrs = LocalTRSToViewportTRS();
         self.trsMatrix = viewTrs;
-        ApplyTRSMatrix(viewTrs);
 
         // !firstTic makes all transformations done, including Coord0-3, interpolate.
         // Setting it to true makes it not interpolate.
         // I think.
         if (!self.psp.bInterpolate && !self.psp.firstTic)
         {
+            console.printf("setting firsttic for %d", pspId);
             self.psp.firstTic = true;
         }
+
+        ApplyTRSMatrix(viewTrs);
     }
 
     virtual play void SetInterpolation(bool interp)
     {
+        console.printf("%d set interp %d firsttic %d", pspId, interp);
         self.psp.bInterpolate = interp;
         if (!self.psp.bInterpolate && !self.psp.FirstTic)
         {
+            console.printf("making firsstic true for %d", pspId);
             self.psp.FirstTic = true;
         }
     }
@@ -198,8 +182,14 @@ class ZSAPSP
         // psp.bInterpolate = !psp.firstTic;
 
         // Immediately set the oldx and y if interpolation is disabled otherwise it will still interpolate and we don't want that in this case.
-        if (!psp.bInterpolate)
+        if (psp.firstTic)
         {
+            psp.bInterpolate = false;
+        }
+        console.printf("binterp: %d firsttic: %d", psp.bInterpolate, psp.firstTic);
+        if (!psp.bInterpolate || psp.firstTic)
+        {
+            console.printf("setting old");
             self.psp.oldx = psp.x;
             self.psp.oldy = psp.y;
         }
@@ -254,5 +244,21 @@ class ZSAPSP
         self.localOffs = t;
         self.localAngs = r;
         self.localScale = s;
+    }
+
+    override void OnDestroy()
+    {
+        console.printf("destroying %d", pspid);
+        if (destroyCascade)
+        {
+            foreach(c : children)
+            {
+                if (!c.bDestroyed)
+                {
+                    c.Destroy();
+                }
+            }
+        }
+        super.OnDestroy();
     }
 }
