@@ -43,18 +43,20 @@ class ZSAPSP
     ZSAnimator animator;
 
     // Local transform information. I should probably figure out a way to determine the order these are stored in.
+    // Reason for that is because in Blender animations are stored as -X, Y, Z. That's not always desirable.
     Vector3 localOffs;
     Vector3 localAngs;
     Vector3 localScale;
     // If true, if this ZSAPSP is destroyed through any means, destroy all child ZSAPSPs as well.
     bool collapseOnDestroy;
 
-    // If the psp is destroyed by any means destroy this ZSAPSP as well.
+    // If the psp is destroyed through Destroy() (check for bDestroyed) destroy this ZSAPSP as well if this is true.
     bool destroyIfPSPDestroyed;
 
     static ZSAPsp GetFromPSP(PSprite psp, ZSAnimator animator)
     {
-        let zsaPsp = animator.GetifExists(pspId)
+        let zsaPsp = animator.zsaPspDict.GetIfExists(psp.id);
+        return zsaPsp;
     }
 
     // Extract the scale portion of a gutamatics matrix. This does lose the signedness.
@@ -75,11 +77,6 @@ class ZSAPSP
     // This does not adjust the actual .rotation and .scale of the psprite.
     play void ApplyToPSP()
     {
-        if (!psp)
-        {
-            return;
-        }
-
         self.psp.bPivotPercent = true;
         self.psp.bAddWeapon = false;
 		self.psp.pivot = (0.5,0.5);
@@ -100,7 +97,6 @@ class ZSAPSP
     // the psprite's own rotation and scale.
     play void TransformCorners(zsaGMMatrix4 matrix)
     {
-		if (!psp || !psp.curstate) { return; }
 		let texid = psp.curstate.GetSpriteTexture(0, spritenum: psp.sprite, framenum: psp.frame);
 		int w, h;
 		[w, h] = TexMan.GetSize(texid);
@@ -137,12 +133,7 @@ class ZSAPSP
     // Mind you 'translation' in this case DOES NOT MEAN 'translation' in GZDoom terms, which is related to recoloring.
     play void ApplyTranslation(Vector3 t)
     {
-        // Todo: Take out the flipx handling and similar stuff and move it to the ZSAnimation pipeline.
-        if (!psp)
-        {
-            return;
-        }
-
+        // Todo: Take out the flipx handling and similar stuff and move it to the ZSAnimation pipeline, as it's related to the Blender plugin.
         bool flipx = flags & ZSAnimator.LF_FLIPX != 0;
         float x, y;
 

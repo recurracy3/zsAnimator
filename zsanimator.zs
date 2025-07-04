@@ -1,4 +1,4 @@
-    // ZSAnimator: A ZScript animation framework, allowing you to make first-person animations in blender usable in GZDoom.
+	// ZSAnimator: A ZScript animation framework, allowing you to make first-person animations in blender usable in GZDoom.
     // Copyright (C) 2025 Recurracy
 
     // This program is free software: you can redistribute it and/or modify
@@ -47,7 +47,8 @@ class ZSAnimationFrame
 	int pspId;
 	// Frame number of this frame.
 	int frameNum;
-	// This allows me to skew a sprite if necessary.
+	// The rotations stored in this frame. PSPs normally have only one rotation axis, but
+	// this is used by ZSAPSP to skew the sprite.
 	Vector3 angles;
 	// Z is the depth of the sprite and may be used later for perspective, and perhaps even automagically changing the psprite layer dynamically so it gets drawn over and under other sprites.
 	Vector3 pspOffsets;
@@ -218,7 +219,6 @@ Class ZSAnimation
 {
 	PlayerInfo ply;
 	int frameCount;
-	int framerate;
 	double playbackSpeed;
 	bool running;
 	Array<ZSAnimationFrame> frames;
@@ -641,6 +641,9 @@ Class ZSAnimator : Thinker
 		LF_FlipX = 1 << 3, // Can be applied to individual frames. If applied to animations, flip the animation rotations and positions.
 		LF_FlipY = 1 << 4 // Same as aboves
 	}
+
+	// Things are bound to get really fucking muddy if I keep changing things around so this is here to maybe make things backwards compatible. 
+	const ZSAVERSION 1.1;
 	
 	PlayerInfo ply;
 	// This prevents the Tick() from doing everything for you so you can do things yourself if you so desire.
@@ -1167,9 +1170,11 @@ Class ZSAnimator : Thinker
 		animRef.animRot = ang;
 	}
 
+	// Returns translation, rotation and scale of the supplied frame,
+	// accounting for flipping and such.
 	clearscope Vector3, Vector3, Vector3 CalculateFrameTRS(ZSanimation anim, ZSanimationFrame f)
 	{
-
+		
 	}
 	
 	// Wrapper to apply a frame.
@@ -1234,12 +1239,9 @@ Class ZSAnimator : Thinker
 			}
 		}
 	}
-	
-	override void Tick()
-	{
-		super.Tick();
-		if (manual) { return; }
 
+	virtual void HandleBlenderPipeline()
+	{
 		UpdateZSAPSPs();
 
 		// BIG TODO:
@@ -1264,6 +1266,15 @@ Class ZSAnimator : Thinker
 		}
 		
 		AdvanceAnimations();
+	}
+	
+	override void Tick()
+	{
+		super.Tick();
+		if (!manual)
+		{
+			HandleBlenderPipeline();
+		}
 	}
 	
 	// Returns a currently playing animation.
