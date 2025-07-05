@@ -668,6 +668,7 @@ Class ZSAnimator : Thinker
 		{
 			// Whatever, flip the animation again.
 			retT.x *= -1;
+			retR.x *= -1;
 			retS.x *= -1;
 		}
 
