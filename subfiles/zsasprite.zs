@@ -98,6 +98,14 @@ class ZSAPSP
         }
 
         ApplyTRSMatrix(viewTrs);
+
+        foreach(c : self.children)
+        {
+            if (c != NULL && !c.bDestroyed && c.psp && !c.psp.bDestroyed && c.psp.caller)
+            {
+                c.ApplyToPSP();
+            }
+        }
     }
 
     virtual play void SetInterpolation(bool interp)
@@ -193,8 +201,11 @@ class ZSAPSP
     // into local transform... Somehow.
     virtual void ParentTo(ZSAPSP newParent, bool keepViewport = false)
     {
+        self.parentPspId = newparent.pspId;
         self.parent = newParent;
-        if (newParent.children.Find(self) != newParent.children.Size())
+        int f = newparent.children.Find(self);
+        int s = newParent.children.Size();
+        if (f == s)
         {
             newParent.children.Push(self);
         }
@@ -205,6 +216,7 @@ class ZSAPSP
     // when unparenting... somehow...
     virtual void Unparent(bool keepViewport = false)
     {
+        self.parentPspId = 0;
         let myIndex = self.parent.children.Find(self);
         if (myIndex != self.parent.children.Size())
         {

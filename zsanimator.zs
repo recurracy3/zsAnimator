@@ -810,7 +810,7 @@ Class ZSAnimator : Thinker
 				zsap.psp = psp;
 			}
 
-			if (frame.parentPspId != ZSAnimator.None)
+			if (frame.parentPspId != 0 && IsPSPIDValid(frame.parentPspId))
 			{
 				let potParent = zsaPspDict.GetIfExists(frame.parentPspId);
 				if (potParent)
@@ -1155,7 +1155,10 @@ Class ZSAnimator : Thinker
 			let [t,r,s] = CalculateTRS(f.pspOffsets, f.angles, (f.pspScale.x, f.pspScale.y, 1), flags);
 			r = ZSAnimator.ReorderZSAToGuta(r);
 			zsap.SetTRS(t,r,s);
-			zsap.ApplyToPSP();
+			if (zsap.parent == NULL)
+			{
+				zsap.ApplyToPSP();
+			}
 			LinkPSprite(anim, f, zsap.psp);
 			zsap.UpdateLastTRS();
 		}
