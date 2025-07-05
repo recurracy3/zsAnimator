@@ -1265,7 +1265,7 @@ Class ZSAnimator : Thinker
 
 	virtual void HandleBlenderPipeline()
 	{
-		UpdateZSAPSPs();
+		// UpdateZSAPSPs();
 		// BIG TODO:
 		// Somehow rewrite this to make dynamically setting psprite information easier.
 		for (int i = 0; i < currentAnimations.size(); i++)
