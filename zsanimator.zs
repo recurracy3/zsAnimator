@@ -1407,8 +1407,3 @@ Class ZSAnimator : Thinker
 		}
 	}
 }
-
-class ZSAnimatorDebugger : EventHandler
-{
-	
-}
