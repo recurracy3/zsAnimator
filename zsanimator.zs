@@ -176,6 +176,12 @@ class ZSAnimationReference : Actor
 	{
 		// I could probably do with omitting Tick() because, well, this Actor doesn't do shit beside lol get rotated idiot
 		super.Tick();
+
+		if (!ply.mo)
+		{
+			Destroy();
+			return;
+		}
 		
 		// Since references are supposed to turn a local view coordinate into a world coordinate,
 		// use the player reference to adjust the coordinates accordingly.
