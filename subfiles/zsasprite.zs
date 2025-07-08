@@ -138,27 +138,44 @@ class ZSAPSP
 		Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
 		Vector3 corner2 = (sprSize.x/2, -sprSize.y/2, 0);
 		Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
+        Vector3 corners[4] = { corner0, corner1, corner2, corner3 };
 
         for (int i = 0; i < 3; i++)
         {
+            if (psp.id == 51)
+            {
+                console.printf("crns %d %.2f %.2f %.2f", i, corners[i]);
+            }
             // Remove the translation portion here as it's (assumedly) done by ApplyTRSMatrix already.
             matrix.values[i][3] = 0;
         }
 		
-		Vector3 v0 = matrix.multiplyVector3(corner0);
-		Vector3 v1 = matrix.multiplyVector3(corner1);
-		Vector3 v2 = matrix.multiplyVector3(corner2);
-		Vector3 v3 = matrix.multiplyVector3(corner3);
+        Vector3 vecs[4];
+        for (int i = 0; i < 4; i++)
+        {
+            vecs[i] = matrix.multiplyVector3(corners[i]);
+            if (psp.id == 51)
+            {
+                console.printf("vecs %d %.2f %.2f %.2f", i, vecs[i]);
+            }
+        }
 		
-		Vector3 diff0 = v0 - corner0;
-		Vector3 diff1 = v1 - corner1;
-		Vector3 diff2 = v2 - corner2;
-		Vector3 diff3 = v3 - corner3;
+        Vector3 diffs[4];
+        for (int i = 0; i < 4; i++)
+        {
+            // diffs[i] = vecs[i];
+            diffs[i] = vecs[i] - corners[i];
+            // diffs[i] = (corners[i].x * vecs[i].x, corners[i].y * vecs[i].y, corners[i].z * vecs[i].z);
+            if (psp.id == 51)
+            {
+                console.printf("difs %d %.2f %.2f %.2f", i, diffs[i]);
+            }
+        }
         // Rather naive attempt at ortho projection by just omitting the Z part of the translation entirely.
-		psp.coord0 = diff0.xy;
-		psp.coord1 = diff1.xy;
-		psp.coord2 = diff2.xy;
-		psp.coord3 = diff3.xy;
+        psp.coord0 = diffs[0].xy;
+        psp.coord1 = diffs[1].xy;
+        psp.coord2 = diffs[2].xy;
+        psp.coord3 = diffs[3].xy;
 	}
 
     // Applies a translation to the PSP.
