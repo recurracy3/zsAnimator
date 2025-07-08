@@ -1139,6 +1139,11 @@ Class ZSAnimator : Thinker
 				return;
 			}
 
+			if (!zsap.psp.curstate)
+			{
+				return;
+			}
+
 			if (zsap.psp)
 			{
 				if (zsap.psp.bInterpolate && !f.interpolate)
@@ -1195,7 +1200,7 @@ Class ZSAnimator : Thinker
 		// collect the psps that exist
 		for (let p = ply.psprites; p != null; p = p.next)
 		{
-			if (p.bDestroyed || p.caller == NULL)
+			if (p.bDestroyed || p.caller == NULL || p.curstate == NULL)
 			{
 				continue;
 			}
