@@ -133,49 +133,79 @@ class ZSAPSP
 		int w, h;
 		[w, h] = TexMan.GetSize(texid);
 		Vector2 sprsize = (w, h);
-		
-		Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
-		Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
-		Vector3 corner2 = (sprSize.x/2, -sprSize.y/2, 0);
-		Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
-        Vector3 corners[4] = { corner0, corner1, corner2, corner3 };
+
+        let p = 50+1;
 
         for (int i = 0; i < 3; i++)
         {
-            if (psp.id == 51)
-            {
-                console.printf("crns %d %.2f %.2f %.2f", i, corners[i]);
-            }
-            // Remove the translation portion here as it's (assumedly) done by ApplyTRSMatrix already.
             matrix.values[i][3] = 0;
         }
-		
-        Vector3 vecs[4];
+
         for (int i = 0; i < 4; i++)
         {
-            vecs[i] = matrix.multiplyVector3(corners[i]);
-            if (psp.id == 51)
+            float x = (i/2%2==0?-w:w)/2;
+            float y = (i%2==0?-h:h)/2;
+
+            Vector3 a = matrix.multiplyVector3((x,y,0));
+
+            let diff = a-(x,y,0);
+            let dist = diff.length();
+
+            let result = diff;
+
+            switch(i)
             {
-                console.printf("vecs %d %.2f %.2f %.2f", i, vecs[i]);
+                case 0: psp.coord0 = result.xy; break;
+                case 1: psp.coord1 = result.xy; break;
+                case 2: psp.coord2 = result.xy; break;
+                case 3: psp.coord3 = result.xy; break;
             }
         }
+
+        return;
+
+		// Vector3 corner0 = (-sprSize.x/2, -sprSize.y/2, 0);
+		// Vector3 corner1 = (-sprSize.x/2, sprSize.y/2, 0);
+		// Vector3 corner2 = (sprSize.x/2, -sprSize.y/2, 0);
+		// Vector3 corner3 = (sprSize.x/2, sprSize.y/2, 0);
+        // Vector3 corners[4] = { corner0, corner1, corner2, corner3 };
+
+        // for (int i = 0; i < 3; i++)
+        // {
+        //     if (psp.id == 55)
+        //     {
+        //         console.printf("crns %d %.2f %.2f %.2f", i, corners[i]);
+        //     }
+        //     // Remove the translation portion here as it's (assumedly) done by ApplyTRSMatrix already.
+        //     matrix.values[i][3] = 0;
+        // }
 		
-        Vector3 diffs[4];
-        for (int i = 0; i < 4; i++)
-        {
-            // diffs[i] = vecs[i];
-            diffs[i] = vecs[i] - corners[i];
-            // diffs[i] = (corners[i].x * vecs[i].x, corners[i].y * vecs[i].y, corners[i].z * vecs[i].z);
-            if (psp.id == 51)
-            {
-                console.printf("difs %d %.2f %.2f %.2f", i, diffs[i]);
-            }
-        }
-        // Rather naive attempt at ortho projection by just omitting the Z part of the translation entirely.
-        psp.coord0 = diffs[0].xy;
-        psp.coord1 = diffs[1].xy;
-        psp.coord2 = diffs[2].xy;
-        psp.coord3 = diffs[3].xy;
+        // Vector3 vecs[4];
+        // for (int i = 0; i < 4; i++)
+        // {
+        //     vecs[i] = matrix.multiplyVector3(corners[i]);
+        //     if (psp.id == 55)
+        //     {
+        //         console.printf("vecs %d %.2f %.2f %.2f", i, vecs[i]);
+        //     }
+        // }
+		
+        // Vector3 diffs[4];
+        // for (int i = 0; i < 4; i++)
+        // {
+        //     // diffs[i] = vecs[i];
+        //     diffs[i] = vecs[i] - corners[i];
+        //     // diffs[i] = (corners[i].x * vecs[i].x, corners[i].y * vecs[i].y, corners[i].z * vecs[i].z);
+        //     if (psp.id == 55)
+        //     {
+        //         console.printf("difs %d %.2f %.2f %.2f", i, diffs[i]);
+        //     }
+        // }
+        // // Rather naive attempt at ortho projection by just omitting the Z part of the translation entirely.
+        // psp.coord0 = diffs[0].xy;
+        // psp.coord1 = diffs[1].xy;
+        // psp.coord2 = diffs[2].xy;
+        // psp.coord3 = diffs[3].xy;
 	}
 
     // Applies a translation to the PSP.

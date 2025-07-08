@@ -1163,7 +1163,6 @@ Class ZSAnimator : Thinker
 			{
 				flags |= ZSAnimator.LF_DontCenterPSP;
 			}
-			let reorder = ZSAnimator.ReorderZSAToGuta(f.angles);
 			let [t,r,s] = CalculateTRS(f.pspOffsets, f.angles, (f.pspScale.x, f.pspScale.y, 1), flags);
 			r = ZSAnimator.ReorderZSAToGuta(r);
 			zsap.SetTRS(t,r,s);
