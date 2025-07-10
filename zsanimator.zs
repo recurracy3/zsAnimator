@@ -832,7 +832,7 @@ Class ZSAnimator : Thinker
 	// TODO: Make frame and endFrame functional
 	void StartAnimation(PlayerInfo ply, ZSAnimation anim, int frame = 0, int endFrame = 0, double playbackSpeed = 1.0)
 	{
-		playbackSpeed *= CVar.GetCVar("zsa_playbackSpeed", players[consoleplayer]).GetFloat();
+		playbackSpeed *= CVar.GetCVar("zsa_playbackSpeed", ply).GetFloat();
 		self.ply = ply;
 		anim.currentAnimator = self;
 		
@@ -1054,7 +1054,7 @@ Class ZSAnimator : Thinker
 	// Todo: make additive functional again
 	void ApplyView(ZSAnimation anim, ZSAnimationFrame f)
 	{
-		float viewScale = CVar.GetCVar("zsa_viewscale", players[consoleplayer]).GetFloat();
+		float viewScale = CVar.GetCVar("zsa_viewscale", self.ply).GetFloat();
 		double roll = f.angles.x * viewScale;
 		double ang = f.angles.y * viewScale;
 		double pit = f.angles.z * viewScale;
